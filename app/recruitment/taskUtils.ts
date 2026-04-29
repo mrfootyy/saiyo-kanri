@@ -1,4 +1,5 @@
 import { Candidate, CandidateStatus, EmailHistory, InterviewStage } from "./types";
+import { STAGE_TYPE_OPTIONS } from "./constants";
 
 const TERMINAL_STATUSES: CandidateStatus[] = ["内定", "不採用", "辞退"];
 
@@ -13,7 +14,7 @@ export type CandidateTask = {
   dueLabel: string;
   severity: "overdue" | "due_soon" | "normal";
   daysWaiting: number;
-  kind: "stage" | "evaluation" | "reply";
+  kind: "stage" | "evaluation" | "interviewer" | "reply";
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -30,12 +31,17 @@ export function getTaskForCandidate(
   for (const stage of sorted) {
     const record = candidate.interviewRecords.find((r) => r.stageName === stage.name);
     if (!record || record.result !== "通過") {
+      const needsInterviewer = stageNeedsInterviewer(stage.name);
+      const interviewers = record?.interviewers ?? [];
       const isEvaluationMissing = !!record && record.result === null;
       const baseDate = record?.date ?? getPreviousPassedDate(candidate, sorted, stage.name) ?? candidate.appliedAt;
       const dueDays = isEvaluationMissing ? 1 : stage.name.includes("書類") ? 3 : 5;
       const daysWaiting = getDaysWaiting(baseDate);
       const daysLeft = dueDays - daysWaiting;
-      const label = isEvaluationMissing
+      const isInterviewerMissing = needsInterviewer && interviewers.length === 0;
+      const label = isInterviewerMissing
+        ? `${stage.name}の面接官を設定する`
+        : isEvaluationMissing
         ? `${stage.name}の評価を入力する`
         : `${stage.name}を対応する`;
       return {
@@ -45,18 +51,25 @@ export function getTaskForCandidate(
         stageName: stage.name,
         stageId: stage.id,
         label,
-        detail: isEvaluationMissing
+        detail: isInterviewerMissing
+          ? "面接官が未設定です。設定するとSlackにメンション通知されます。"
+          : isEvaluationMissing
           ? "面接・選考後の評価が未入力です。"
           : `${baseDate}から${daysWaiting}日経過しています。`,
         dueLabel: formatDueLabel(daysLeft),
-        severity: getSeverity(daysLeft),
+        severity: isInterviewerMissing ? "due_soon" : getSeverity(daysLeft),
         daysWaiting,
-        kind: isEvaluationMissing ? "evaluation" : "stage",
+        kind: isInterviewerMissing ? "interviewer" : isEvaluationMissing ? "evaluation" : "stage",
       };
     }
   }
 
   return null;
+}
+
+function stageNeedsInterviewer(stageName: string): boolean {
+  const def = STAGE_TYPE_OPTIONS.find((stage) => stage.name === stageName);
+  return def?.hasInterviewers ?? true;
 }
 
 export function getAllTasks(
