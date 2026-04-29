@@ -130,21 +130,29 @@ export default function StageDetailPage() {
     const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
     const ts = `${today} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
     const newStatus = deriveCandidateStatusFromFlow(updatedRecords, interviewStages, candidate!.status);
+    const visibleNotifications = notifications.filter((notification) => notification.channel !== "面接官DM");
 
     if (newStatus !== candidate!.status) {
-      const statusEmoji = newStatus === "内定" ? "🎉" : newStatus === "不採用" ? "❌" : "🔄";
-      notifications.push({
-        id: `s_${Date.now()}_status`,
-        candidateId: candidate!.id,
-        candidateName: candidate!.name,
-        sentAt: ts,
-        channel: "#採用チャンネル",
-        message: `${statusEmoji} ${candidate!.name}さんのステータスが「${candidate!.status}」から「${newStatus}」に更新されました。`,
-      });
+      const statusLine = `ステータスも「${candidate!.status}」から「${newStatus}」に更新されました。`;
+      const channelNotification = visibleNotifications.find((notification) => notification.channel === "#採用チャンネル");
+
+      if (channelNotification) {
+        channelNotification.message = `${channelNotification.message}\n${statusLine}`;
+      } else {
+        const statusEmoji = newStatus === "内定" ? "🎉" : newStatus === "不採用" ? "❌" : "🔄";
+        visibleNotifications.push({
+          id: `s_${Date.now()}_status`,
+          candidateId: candidate!.id,
+          candidateName: candidate!.name,
+          sentAt: ts,
+          channel: "#採用チャンネル",
+          message: `${statusEmoji} ${candidate!.name}さんの${statusLine}`,
+        });
+      }
     }
 
     updateCandidate({ ...candidate!, status: newStatus, updatedAt: today, interviewRecords: updatedRecords });
-    if (notifications.length > 0) addSlackNotifications(notifications);
+    if (visibleNotifications.length > 0) addSlackNotifications(visibleNotifications);
   }
 
   return (
@@ -340,21 +348,6 @@ function StageForm({
         sentAt: timestamp,
         channel: "#採用チャンネル",
         message: `${resultEmoji} ${candidateName}さんの【${stage.name}】の判定が「${result}」になりました。`,
-      });
-    }
-
-    // 面接官が変わったらメンション付きSlack通知
-    const prevIds = (existing?.interviewers ?? []).slice().sort().join(",");
-    const nextIds = [...interviewers].sort().join(",");
-    if (nextIds !== prevIds && interviewers.length > 0) {
-      const mentions = interviewers.map((i) => `@${i}`).join(" ");
-      notifications.push({
-        id: `s_${Date.now()}_iv`,
-        candidateId,
-        candidateName,
-        sentAt: timestamp,
-        channel: "面接官DM",
-        message: `${mentions} ${candidateName}さんの【${stage.name}】の面接を担当していただきます。日程: ${date}`,
       });
     }
 
