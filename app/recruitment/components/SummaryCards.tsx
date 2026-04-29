@@ -34,10 +34,10 @@ export default function SummaryCards({ candidates }: Props) {
           className={`rounded-lg border p-4 ${card.color}`}
         >
           <p className="text-sm text-gray-500">{card.label}</p>
-          <p className={`mt-1 text-3xl font-bold ${card.textColor}`}>
+          <p className={`mt-1 flex items-baseline gap-1 text-3xl font-bold ${card.textColor}`}>
             {card.value}
+            <span className="text-xs font-normal text-gray-400">件</span>
           </p>
-          <p className="mt-1 text-xs text-gray-400">件</p>
         </div>
       ))}
     </div>
