@@ -64,29 +64,48 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        setHasLoadedStorage(true);
-        return;
+    async function loadStoredData() {
+      let localData: StoredRecruitmentData | null = null;
+
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed: unknown = JSON.parse(raw);
+          if (isStoredRecruitmentData(parsed)) localData = parsed;
+        }
+      } catch (error) {
+        console.error("Failed to load recruitment data from localStorage", error);
       }
 
-      const parsed: unknown = JSON.parse(raw);
-      if (!isStoredRecruitmentData(parsed)) {
+      try {
+        const response = await fetch("/api/recruitment-state");
+        if (response.ok) {
+          const result = await response.json();
+          if (isStoredRecruitmentData(result.data)) {
+            setCandidates(syncCandidateStatuses(result.data.candidates, result.data.interviewStages));
+            setInterviewStages(result.data.interviewStages);
+            setSlackNotifications(result.data.slackNotifications);
+            setInterviewQuestions(result.data.interviewQuestions);
+            setInterviewers(result.data.interviewers);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load recruitment data from Supabase", error);
+      } finally {
         setHasLoadedStorage(true);
-        return;
       }
 
-      setCandidates(syncCandidateStatuses(parsed.candidates, parsed.interviewStages));
-      setInterviewStages(parsed.interviewStages);
-      setSlackNotifications(parsed.slackNotifications);
-      setInterviewQuestions(parsed.interviewQuestions);
-      setInterviewers(parsed.interviewers);
-    } catch (error) {
-      console.error("Failed to load recruitment data from localStorage", error);
-    } finally {
-      setHasLoadedStorage(true);
+      if (localData) {
+        setCandidates(syncCandidateStatuses(localData.candidates, localData.interviewStages));
+        setInterviewStages(localData.interviewStages);
+        setSlackNotifications(localData.slackNotifications);
+        setInterviewQuestions(localData.interviewQuestions);
+        setInterviewers(localData.interviewers);
+      }
     }
+
+    loadStoredData();
   }, []);
 
   useEffect(() => {
@@ -105,6 +124,18 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       console.error("Failed to save recruitment data to localStorage", error);
     }
+
+    const timeoutId = window.setTimeout(() => {
+      fetch("/api/recruitment-state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).catch((error) => {
+        console.error("Failed to save recruitment data to Supabase", error);
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
   }, [candidates, hasLoadedStorage, interviewQuestions, interviewStages, interviewers, slackNotifications]);
 
   function updateCandidate(updated: Candidate) {
