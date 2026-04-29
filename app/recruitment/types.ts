@@ -101,3 +101,8 @@ export type InterviewStage = {
   durationMinutes: number;
   description: string;
 };
+
+export type InterviewerMention = {
+  name: string;
+  mention: string;
+};

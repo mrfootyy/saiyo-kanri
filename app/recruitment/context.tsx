@@ -22,6 +22,9 @@ type RecruitmentContextType = {
   interviewers: string[];
   addInterviewer: (name: string) => void;
   removeInterviewer: (name: string) => void;
+  interviewerMentions: Record<string, string>;
+  updateInterviewerMention: (name: string, mention: string) => void;
+  getInterviewerMention: (name: string) => string;
 };
 
 const RecruitmentContext = createContext<RecruitmentContextType | null>(null);
@@ -33,6 +36,7 @@ type StoredRecruitmentData = {
   slackNotifications: SlackNotification[];
   interviewQuestions: InterviewQuestion[];
   interviewers: string[];
+  interviewerMentions?: Record<string, string>;
 };
 
 function isStoredRecruitmentData(value: unknown): value is StoredRecruitmentData {
@@ -61,6 +65,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   const [slackNotifications, setSlackNotifications] = useState<SlackNotification[]>(mockSlackNotifications);
   const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>(mockInterviewQuestions);
   const [interviewers, setInterviewers] = useState<string[]>([...INTERVIEWER_OPTIONS]);
+  const [interviewerMentions, setInterviewerMentions] = useState<Record<string, string>>({});
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
   useEffect(() => {
@@ -87,6 +92,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
             setSlackNotifications(result.data.slackNotifications);
             setInterviewQuestions(result.data.interviewQuestions);
             setInterviewers(result.data.interviewers);
+            setInterviewerMentions(result.data.interviewerMentions ?? {});
             return;
           }
         }
@@ -102,6 +108,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         setSlackNotifications(localData.slackNotifications);
         setInterviewQuestions(localData.interviewQuestions);
         setInterviewers(localData.interviewers);
+        setInterviewerMentions(localData.interviewerMentions ?? {});
       }
     }
 
@@ -117,6 +124,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       slackNotifications,
       interviewQuestions,
       interviewers,
+      interviewerMentions,
     };
 
     try {
@@ -136,7 +144,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [candidates, hasLoadedStorage, interviewQuestions, interviewStages, interviewers, slackNotifications]);
+  }, [candidates, hasLoadedStorage, interviewerMentions, interviewQuestions, interviewStages, interviewers, slackNotifications]);
 
   function updateCandidate(updated: Candidate) {
     setCandidates((prev) =>
@@ -203,6 +211,23 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
 
   function removeInterviewer(name: string) {
     setInterviewers((prev) => prev.filter((i) => i !== name));
+    setInterviewerMentions((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  }
+
+  function updateInterviewerMention(name: string, mention: string) {
+    setInterviewerMentions((prev) => ({
+      ...prev,
+      [name]: mention.trim(),
+    }));
+  }
+
+  function getInterviewerMention(name: string) {
+    const mention = interviewerMentions[name]?.trim();
+    return mention || `@${name}`;
   }
 
   return (
@@ -222,6 +247,9 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         interviewers,
         addInterviewer,
         removeInterviewer,
+        interviewerMentions,
+        updateInterviewerMention,
+        getInterviewerMention,
       }}
     >
       {children}

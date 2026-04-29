@@ -100,7 +100,7 @@ function isStageAccessible(
 
 export default function StageDetailPage() {
   const params = useParams();
-  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions } = useRecruitment();
+  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions, getInterviewerMention } = useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
   const stage = interviewStages.find((s) => s.id === params.stageId);
@@ -252,6 +252,7 @@ export default function StageDetailPage() {
             allStages={sorted}
             records={candidate.interviewRecords}
             interviewerOptions={interviewerOptions}
+            getInterviewerMention={getInterviewerMention}
             onSave={handleSave}
           />
         )}
@@ -269,6 +270,7 @@ function StageForm({
   allStages,
   records,
   interviewerOptions,
+  getInterviewerMention,
   onSave,
 }: {
   candidateId: string;
@@ -279,6 +281,7 @@ function StageForm({
   allStages: InterviewStage[];
   records: InterviewRecord[];
   interviewerOptions: string[];
+  getInterviewerMention: (name: string) => string;
   onSave: (records: InterviewRecord[], notifications: SlackNotification[]) => void;
 }) {
   const existing = records.find((r) => r.stageName === stage.name) ?? null;
@@ -301,9 +304,7 @@ function StageForm({
   const [date, setDate] = useState(existing?.date ?? new Date().toISOString().slice(0, 10));
   const [format, setFormat] = useState<InterviewFormat>(existing?.format ?? stage.format);
   const [zoomUrl, setZoomUrl] = useState(existing?.zoomUrl ?? "");
-  const [interviewers, setInterviewers] = useState<string[]>(
-    existing?.interviewers.length ? existing.interviewers : stage.interviewers
-  );
+  const [interviewers, setInterviewers] = useState<string[]>(existing?.interviewers ?? []);
   const [evaluations, setEvaluations] = useState<EvaluationItem[]>(makeInitialEvaluations);
   const [decisionReason, setDecisionReason] = useState(existing?.decisionReason ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
@@ -348,6 +349,20 @@ function StageForm({
         sentAt: timestamp,
         channel: "#採用チャンネル",
         message: `${resultEmoji} ${candidateName}さんの【${stage.name}】の判定が「${result}」になりました。`,
+      });
+    }
+
+    const prevInterviewers = new Set(existing?.interviewers ?? []);
+    const addedInterviewers = interviewers.filter((name) => !prevInterviewers.has(name));
+    if (addedInterviewers.length > 0) {
+      const mentions = addedInterviewers.map((name) => getInterviewerMention(name)).join(" ");
+      notifications.push({
+        id: `s_${Date.now()}_interviewers`,
+        candidateId,
+        candidateName,
+        sentAt: timestamp,
+        channel: "#採用チャンネル",
+        message: `${mentions} ${candidateName}さんの【${stage.name}】を担当してください。日程: ${date}`,
       });
     }
 

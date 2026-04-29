@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRecruitment } from "../context";
 
 export default function SettingsPage() {
-  const { interviewers, addInterviewer, removeInterviewer } = useRecruitment();
+  const { interviewers, addInterviewer, removeInterviewer, interviewerMentions, updateInterviewerMention } = useRecruitment();
   const [input, setInput] = useState("");
+  const [mentionInput, setMentionInput] = useState("");
   const [error, setError] = useState("");
 
   function handleAdd() {
@@ -16,7 +17,9 @@ export default function SettingsPage() {
       return;
     }
     addInterviewer(name);
+    if (mentionInput.trim()) updateInterviewerMention(name, mentionInput);
     setInput("");
+    setMentionInput("");
     setError("");
   }
 
@@ -28,22 +31,30 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
-        <div className="max-w-xl">
+        <div className="max-w-4xl">
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div className="px-6 py-5 border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">面接官</h2>
-              <p className="mt-0.5 text-sm text-gray-500">登録した面接官は面接設定で選択できます。</p>
+              <p className="mt-0.5 text-sm text-gray-500">登録した面接官は面接設定で選択できます。Slackメンションもここで設定します。</p>
             </div>
 
             {/* 追加フォーム */}
             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-              <div className="flex gap-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => { setInput(e.target.value); setError(""); }}
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  placeholder="例：山田部長"
+                  placeholder="面接官名（例：山田部長）"
+                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <input
+                  type="text"
+                  value={mentionInput}
+                  onChange={(e) => setMentionInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="Slackメンション（例：<@U123...>）"
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
                 <button
@@ -68,21 +79,34 @@ export default function SettingsPage() {
             ) : (
               <ul className="divide-y divide-gray-100">
                 {interviewers.map((name) => (
-                  <li key={name} className="flex items-center justify-between px-6 py-3.5">
+                  <li key={name} className="flex items-center justify-between gap-3 px-6 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
                         {name[0]}
                       </div>
-                      <span className="text-sm font-medium text-gray-800">{name}</span>
+                      <div>
+                        <span className="text-sm font-medium text-gray-800">{name}</span>
+                        <p className="mt-0.5 text-xs text-gray-400">Slack通知ではこのメンションを使います。</p>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => removeInterviewer(name)}
-                      className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={interviewerMentions[name] ?? ""}
+                        onChange={(e) => updateInterviewerMention(name, e.target.value)}
+                        placeholder={`@${name}`}
+                        className="w-56 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <button
+                        onClick={() => removeInterviewer(name)}
+                        className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        title="削除"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
