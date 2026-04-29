@@ -314,14 +314,15 @@ function StageForm({
 
   const evaluationReady = useMemo(() => {
     const gradesReady = evaluations.every((item) => item.grade !== null);
+    const episodesReady = evaluations.every((item) => item.episode.trim().length > 0);
     const reasonReady = decisionReason.trim().length > 0;
     const ratingReady = isDocumentStage || rating !== null;
-    return gradesReady && reasonReady && ratingReady;
+    return gradesReady && episodesReady && reasonReady && ratingReady;
   }, [decisionReason, evaluations, isDocumentStage, rating]);
 
   const evaluationHelpText = isDocumentStage
-    ? "すべての評価項目と合否判断の理由を入力すると、判定を選べます。"
-    : "総合評価、すべての評価項目、合否判断の理由を入力すると、判定を選べます。";
+    ? "すべての評点、具体的なエピソード、合否判断の理由を入力すると、判定を選べます。"
+    : "総合評価、すべての評点、具体的なエピソード、合否判断の理由を入力すると、判定を選べます。";
 
   function updateEval(i: number, patch: Partial<EvaluationItem>) {
     setEvaluations((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
@@ -456,7 +457,10 @@ function StageForm({
                 <tr className="border-y border-gray-200 bg-gray-50">
                   <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 w-48">評価項目</th>
                   <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 w-44">評点</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">コメント・根拠</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                    コメント・根拠
+                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -668,7 +672,10 @@ function StageForm({
                 <tr className="border-y border-gray-200 bg-gray-50">
                   <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 w-48">評価項目</th>
                   <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 w-44">評点</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">具体的なエピソード・根拠（事実ベース）</th>
+                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
+                    具体的なエピソード・根拠（事実ベース）
+                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
