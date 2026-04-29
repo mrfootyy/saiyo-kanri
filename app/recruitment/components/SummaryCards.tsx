@@ -1,6 +1,7 @@
 "use client";
 
 import { Candidate } from "../types";
+import { ACTIVE_STATUSES } from "../constants";
 
 type Props = {
   candidates: Candidate[];
@@ -9,14 +10,14 @@ type Props = {
 export default function SummaryCards({ candidates }: Props) {
   const total = candidates.length;
 
-  const active = candidates.filter(
-    (c) => c.status !== "不採用" && c.status !== "辞退" && c.status !== "内定"
-  ).length;
+  const active = candidates.filter((c) => ACTIVE_STATUSES.includes(c.status)).length;
 
   const offered = candidates.filter((c) => c.status === "内定").length;
 
   const pendingEval = candidates.filter(
-    (c) => c.interviewers.length > 0 && c.memo === ""
+    (c) =>
+      ACTIVE_STATUSES.includes(c.status) &&
+      c.interviewRecords.some((r) => r.result === null)
   ).length;
 
   const cards = [

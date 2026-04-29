@@ -27,6 +27,7 @@ export async function POST(request: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: formatSlackMessage(notification),
+            mrkdwn: true,
           }),
         })
       )
@@ -43,10 +44,5 @@ export async function POST(request: Request) {
 }
 
 function formatSlackMessage(notification: SlackNotification) {
-  return [
-    `*採用管理通知*`,
-    notification.message,
-    `候補者: ${notification.candidateName}`,
-    `送信先: ${notification.channel}`,
-  ].join("\n");
+  return `*採用管理通知*\n${notification.message}`;
 }

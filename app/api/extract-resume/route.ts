@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const MODEL = process.env.OPENAI_RESUME_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,6 +20,14 @@ export async function POST(req: NextRequest) {
     const base64 = dataUrl.split(",")[1];
     if (!base64) {
       return NextResponse.json({ error: "Invalid dataUrl" }, { status: 400 });
+    }
+
+    const byteLength = Buffer.byteLength(base64, "base64");
+    if (byteLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "ファイルサイズが大きすぎます。15MB以下のPDFまたは画像をアップロードしてください。" },
+        { status: 400 }
+      );
     }
 
     const isImage = fileType?.startsWith("image/");
@@ -43,59 +52,30 @@ export async function POST(req: NextRequest) {
 
 JSONのみを返してください。説明文は不要です。`;
 
-    let response;
+    const response = await client.responses.create({
+      model: MODEL,
+      instructions: systemPrompt,
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: "この履歴書・職務経歴書から情報を抽出してください。" },
+            isImage
+              ? { type: "input_image", image_url: dataUrl, detail: "high" }
+              : {
+                  type: "input_file",
+                  filename: "resume.pdf",
+                  file_data: `data:application/pdf;base64,${base64}`,
+                  detail: "high",
+                },
+          ],
+        },
+      ],
+      max_output_tokens: 1000,
+      text: { format: { type: "json_object" } },
+    });
 
-    if (isImage) {
-      // 画像はvision APIで直接読み取り
-      response = await client.chat.completions.create({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "この履歴書・職務経歴書から情報を抽出してください。" },
-              { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-            ],
-          },
-        ],
-        max_tokens: 1000,
-        response_format: { type: "json_object" },
-      });
-    } else {
-      // PDFはバイナリからテキストを取り出してテキストとして送信
-      const binaryStr = Buffer.from(base64, "base64").toString("latin1");
-      // PDFストリームからテキストブロックを抽出（BT...ETブロック、Tj、TJオペレータ）
-      const textChunks: string[] = [];
-      const btEtRegex = /BT([\s\S]*?)ET/g;
-      let btMatch: RegExpExecArray | null;
-      while ((btMatch = btEtRegex.exec(binaryStr)) !== null) {
-        const block = btMatch[1];
-        // (テキスト)Tj または [(テキスト)]TJ パターン
-        const tjRegex = /\(([^)]*)\)\s*Tj|\[([^\]]*)\]\s*TJ/g;
-        let tjMatch: RegExpExecArray | null;
-        while ((tjMatch = tjRegex.exec(block)) !== null) {
-          const raw = (tjMatch[1] ?? tjMatch[2] ?? "").replace(/\\(\d{3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)));
-          if (raw.trim()) textChunks.push(raw.trim());
-        }
-      }
-      const extractedText = textChunks.join(" ").slice(0, 8000);
-
-      response = await client.chat.completions.create({
-        model: MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `以下は履歴書・職務経歴書のテキストです。情報を抽出してください。\n\n${extractedText || "（テキストの抽出に失敗しました）"}`,
-          },
-        ],
-        max_tokens: 1000,
-        response_format: { type: "json_object" },
-      });
-    }
-
-    const content = response.choices[0]?.message?.content;
+    const content = response.output_text;
     if (!content) {
       return NextResponse.json({ error: "No response from AI" }, { status: 500 });
     }
@@ -119,6 +99,7 @@ JSONのみを返してください。説明文は不要です。`;
     const status = (err as { status?: number })?.status;
     if (status === 401) return NextResponse.json({ error: "APIキーが無効です。.env.local を確認してください。" }, { status: 401 });
     if (status === 429) return NextResponse.json({ error: "OpenAI APIのクォータを超過しています。残高を確認してください。" }, { status: 429 });
+    if (status === 400) return NextResponse.json({ error: "ファイル形式をAIが読み取れませんでした。別のPDFまたは画像で試してください。" }, { status: 400 });
     return NextResponse.json({ error: "AI読み取りに失敗しました。" }, { status: 500 });
   }
 }

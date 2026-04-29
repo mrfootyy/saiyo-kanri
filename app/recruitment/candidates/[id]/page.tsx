@@ -676,7 +676,7 @@ function CandidateDetail({
                   <input type="url" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)}
                     placeholder="https://example.com"
                     className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                  {portfolioUrl.trim() && (
+                  {portfolioUrl.trim() && /^https?:\/\//i.test(portfolioUrl.trim()) && (
                     <a href={portfolioUrl.trim()} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 hover:bg-blue-100 whitespace-nowrap">
                       <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

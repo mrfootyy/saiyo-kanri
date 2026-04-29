@@ -162,7 +162,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   function addCandidate(candidate: Candidate) {
     const timestamp = formatTimestamp(new Date());
     const notification: SlackNotification = {
-      id: `s_${Date.now()}_candidate`,
+      id: crypto.randomUUID(),
       candidateId: candidate.id,
       candidateName: candidate.name,
       sentAt: timestamp,
@@ -226,8 +226,13 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   }
 
   function getInterviewerMention(name: string) {
-    const mention = interviewerMentions[name]?.trim();
-    return mention || `@${name}`;
+    const raw = interviewerMentions[name]?.trim();
+    if (!raw) return `@${name}`;
+    // すでに <@U...> 形式ならそのまま
+    if (raw.startsWith("<@") && raw.endsWith(">")) return raw;
+    // U で始まるメンバーID だけ入力された場合は自動整形
+    if (/^[UW][A-Z0-9]{6,}$/i.test(raw)) return `<@${raw}>`;
+    return raw;
   }
 
   return (

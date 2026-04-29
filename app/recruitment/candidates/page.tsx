@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRecruitment } from "../context";
 import { CandidateStatus, StatusFilterValue } from "../types";
-
-const ACTIVE_STATUSES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接"];
+import { ACTIVE_STATUSES } from "../constants";
 import SearchFilter from "../components/SearchFilter";
 import CandidateTable from "../components/CandidateTable";
 import AddCandidateModal from "../components/AddCandidateModal";

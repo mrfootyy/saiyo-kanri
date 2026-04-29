@@ -60,6 +60,7 @@ export default function DocumentViewer({ file, onClose }: Props) {
             title={file.name}
             className="h-full w-full rounded bg-white shadow-2xl"
             style={{ minHeight: "80vh" }}
+            sandbox="allow-same-origin allow-scripts"
           />
         )}
       </div>

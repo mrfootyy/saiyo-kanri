@@ -36,6 +36,15 @@ export default function SettingsPage() {
             <div className="px-6 py-5 border-b border-gray-100">
               <h2 className="text-base font-bold text-gray-900">面接官</h2>
               <p className="mt-0.5 text-sm text-gray-500">登録した面接官は面接設定で選択できます。Slackメンションもここで設定します。</p>
+              <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-800 space-y-1">
+                <p className="font-semibold">Slackメンションの設定方法</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-blue-700">
+                  <li>Slackで該当メンバーのプロフィールを開く</li>
+                  <li>「…」→「メンバーIDをコピー」を選択</li>
+                  <li>コピーしたID（例: <code className="font-mono bg-blue-100 px-1 rounded">U12345ABC</code>）を下の欄に貼り付ける</li>
+                </ol>
+                <p className="text-blue-600 mt-1">入力値は自動で <code className="font-mono bg-blue-100 px-1 rounded">&lt;@U12345ABC&gt;</code> に変換されます。</p>
+              </div>
             </div>
 
             {/* 追加フォーム */}
@@ -54,7 +63,7 @@ export default function SettingsPage() {
                   value={mentionInput}
                   onChange={(e) => setMentionInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                  placeholder="Slackメンション（例：<@U123...>）"
+                  placeholder="SlackメンバーID（例：U12345ABC）"
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
                 <button
@@ -86,7 +95,11 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <span className="text-sm font-medium text-gray-800">{name}</span>
-                        <p className="mt-0.5 text-xs text-gray-400">Slack通知ではこのメンションを使います。</p>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {interviewerMentions[name]
+                            ? `メンション: ${interviewerMentions[name].startsWith("<@") ? interviewerMentions[name] : `<@${interviewerMentions[name]}>`}`
+                            : "メンションID未設定"}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -94,7 +107,7 @@ export default function SettingsPage() {
                         type="text"
                         value={interviewerMentions[name] ?? ""}
                         onChange={(e) => updateInterviewerMention(name, e.target.value)}
-                        placeholder={`@${name}`}
+                        placeholder="U12345ABC"
                         className="w-56 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       />
                       <button

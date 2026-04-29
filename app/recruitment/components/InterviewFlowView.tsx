@@ -20,7 +20,7 @@ type FormState = {
 const emptyForm = (): FormState => ({
   name: "",
   interviewers: [],
-  format: "オンライン",
+  format: "対面",
   description: "",
 });
 
@@ -69,7 +69,7 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
       name,
       description: def?.defaultDescription ?? f.description,
       interviewers: def?.hasInterviewers ? f.interviewers : [],
-      format: def?.hasFormat ? f.format : "オンライン",
+      format: def?.hasFormat ? f.format : "対面",
     }));
   }
 

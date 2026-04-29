@@ -141,7 +141,7 @@ export default function StageDetailPage() {
       } else {
         const statusEmoji = newStatus === "内定" ? "🎉" : newStatus === "不採用" ? "❌" : "🔄";
         visibleNotifications.push({
-          id: `s_${Date.now()}_status`,
+          id: crypto.randomUUID(),
           candidateId: candidate!.id,
           candidateName: candidate!.name,
           sentAt: ts,
@@ -320,7 +320,7 @@ function StageForm({
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     const newRecord: InterviewRecord = {
-      id: existing?.id ?? `ir_${Date.now()}`,
+      id: existing?.id ?? crypto.randomUUID(),
       stageName: stage.name,
       date,
       interviewers,
@@ -343,7 +343,7 @@ function StageForm({
     if (result !== null && result !== existing?.result) {
       const resultEmoji = result === "通過" ? "✅" : result === "保留" ? "⚠️" : "❌";
       notifications.push({
-        id: `s_${Date.now()}_result`,
+        id: crypto.randomUUID(),
         candidateId,
         candidateName,
         sentAt: timestamp,
@@ -357,7 +357,7 @@ function StageForm({
     if (addedInterviewers.length > 0) {
       const mentions = addedInterviewers.map((name) => getInterviewerMention(name)).join(" ");
       notifications.push({
-        id: `s_${Date.now()}_interviewers`,
+        id: crypto.randomUUID(),
         candidateId,
         candidateName,
         sentAt: timestamp,

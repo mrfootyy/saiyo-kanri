@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Candidate, EmailHistory, InterviewStage, SlackNotification } from "../types";
 import { getAllTasks } from "../taskUtils";
 import SummaryCards from "./SummaryCards";
-import StatusBadge from "./StatusBadge";
+import InterviewCalendar from "./InterviewCalendar";
 
 type Props = {
   candidates: Candidate[];
@@ -14,10 +14,6 @@ type Props = {
 };
 
 export default function DashboardView({ candidates, slackNotifications, emailHistories, interviewStages }: Props) {
-  const recentCandidates = [...candidates]
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 5);
-
   const recentSlack = [...slackNotifications]
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
     .slice(0, 5);
@@ -94,37 +90,8 @@ export default function DashboardView({ candidates, slackNotifications, emailHis
         </div>
       )}
 
-      {/* 最近の応募者 */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-bold text-gray-700">最近の応募者</h2>
-          <Link href="/recruitment/candidates" className="text-xs font-semibold text-blue-600 hover:text-blue-800">
-            すべて見る →
-          </Link>
-        </div>
-        {recentCandidates.length === 0 ? (
-          <p className="px-5 py-6 text-center text-sm text-gray-500">応募者がいません。</p>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {recentCandidates.map((c) => (
-              <Link
-                key={c.id}
-                href={`/recruitment/candidates/${c.id}`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-blue-50 transition-colors"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-gray-800">{c.name}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <p className="mt-0.5 text-xs text-gray-500">{c.position}</p>
-                </div>
-                <span className="flex-shrink-0 text-xs text-gray-400">{c.updatedAt}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* 面接カレンダー */}
+      <InterviewCalendar candidates={candidates} />
 
       {/* 通知・メール */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
