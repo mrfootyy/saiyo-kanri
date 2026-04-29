@@ -152,6 +152,16 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   }
 
   function addCandidate(candidate: Candidate) {
+    const timestamp = formatTimestamp(new Date());
+    const notification: SlackNotification = {
+      id: `s_${Date.now()}_candidate`,
+      candidateId: candidate.id,
+      candidateName: candidate.name,
+      sentAt: timestamp,
+      channel: "#採用チャンネル",
+      message: `${candidate.name}さんが「${candidate.position}」に応募者登録されました。`,
+    };
+
     setCandidates((prev) => [
       {
         ...candidate,
@@ -159,6 +169,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       },
       ...prev,
     ]);
+    addSlackNotifications([notification]);
   }
 
   function updateInterviewStages(stages: InterviewStage[]) {
@@ -167,7 +178,15 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   }
 
   function addSlackNotifications(notifications: SlackNotification[]) {
+    if (notifications.length === 0) return;
     setSlackNotifications((prev) => [...prev, ...notifications]);
+    fetch("/api/slack-notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notifications }),
+    }).catch((error) => {
+      console.error("Failed to send Slack notifications", error);
+    });
   }
 
   function addInterviewQuestion(q: InterviewQuestion) {
@@ -208,6 +227,10 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       {children}
     </RecruitmentContext.Provider>
   );
+}
+
+function formatTimestamp(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 export function useRecruitment() {

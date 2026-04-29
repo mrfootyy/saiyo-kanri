@@ -182,8 +182,46 @@ function CandidateDetail({
 
   const candidateSlacks = allSlack.filter((s) => s.candidateId === candidate.id);
 
-  async function readDocument(file: DocumentFile | undefined, onFileChange: (file: DocumentFile | undefined) => void) {
+  function getToday() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
+
+  function buildCandidateUpdate(overrides: Partial<Candidate> = {}): Candidate {
+    return {
+      ...candidate,
+      name,
+      nameKana,
+      position,
+      email,
+      phone,
+      age,
+      status: syncedStatus,
+      interviewers,
+      memo,
+      updatedAt: getToday(),
+      resumeFile,
+      cvFile,
+      portfolioUrl: portfolioUrl.trim() || undefined,
+      portfolioFile,
+      skills,
+      companies,
+      experienceYears,
+      githubUrl: githubUrl.trim() || undefined,
+      interviewRecords: records,
+      ...overrides,
+    };
+  }
+
+  async function readDocument(
+    file: DocumentFile | undefined,
+    onFileChange: (file: DocumentFile | undefined) => void,
+    documentPatch: Partial<Candidate>
+  ) {
     onFileChange(file);
+    onUpdate(buildCandidateUpdate(documentPatch));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
     setExtracted(null);
     setExtractError(null);
     if (!file) return;
@@ -198,23 +236,42 @@ function CandidateDetail({
   }
 
   async function handleResumeUpload(file: DocumentFile | undefined) {
-    await readDocument(file, setResumeFile);
+    await readDocument(file, setResumeFile, { resumeFile: file });
   }
 
   async function handleCvUpload(file: DocumentFile | undefined) {
-    await readDocument(file, setCvFile);
+    await readDocument(file, setCvFile, { cvFile: file });
   }
 
   function applyExtracted() {
     if (!extracted) return;
+    const nextSkills = extracted.skills?.length ? [...new Set([...skills, ...extracted.skills])] : skills;
+    const nextCompanies = extracted.companies?.length ? [...new Set([...companies, ...extracted.companies])] : companies;
+    const nextEmail = extracted.email ?? email;
+    const nextPhone = extracted.phone ?? phone;
+    const nextAge = extracted.age ?? age;
+    const nextExperienceYears = extracted.experienceYears ?? experienceYears;
+    const nextGithubUrl = extracted.githubUrl ?? githubUrl;
+
     if (extracted.email) setEmail(extracted.email);
     if (extracted.phone) setPhone(extracted.phone);
     if (extracted.age) setAge(extracted.age);
-    if (extracted.skills?.length) setSkills((prev) => [...new Set([...prev, ...extracted.skills!])]);
-    if (extracted.companies?.length) setCompanies((prev) => [...new Set([...prev, ...extracted.companies!])]);
+    if (extracted.skills?.length) setSkills(nextSkills);
+    if (extracted.companies?.length) setCompanies(nextCompanies);
     if (extracted.experienceYears) setExperienceYears(extracted.experienceYears);
     if (extracted.githubUrl) setGithubUrl(extracted.githubUrl);
+    onUpdate(buildCandidateUpdate({
+      email: nextEmail,
+      phone: nextPhone,
+      age: nextAge,
+      skills: nextSkills,
+      companies: nextCompanies,
+      experienceYears: nextExperienceYears,
+      githubUrl: nextGithubUrl.trim() || undefined,
+    }));
     setExtracted(null);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
     setActiveTab("基本情報");
   }
 
@@ -239,19 +296,7 @@ function CandidateDetail({
 
     if (newNotifications.length > 0) onAddSlack(newNotifications);
 
-    onUpdate({
-      ...candidate,
-      name, nameKana, position, email, phone, age, status: syncedStatus, interviewers, memo,
-      updatedAt: today,
-      resumeFile, cvFile,
-      portfolioUrl: portfolioUrl.trim() || undefined,
-      portfolioFile,
-      skills,
-      companies,
-      experienceYears,
-      githubUrl: githubUrl.trim() || undefined,
-      interviewRecords: records,
-    });
+    onUpdate(buildCandidateUpdate({ updatedAt: today }));
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
