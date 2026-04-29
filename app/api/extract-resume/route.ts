@@ -59,7 +59,7 @@ JSONのみを返してください。説明文は不要です。`;
         {
           role: "user",
           content: [
-            { type: "input_text", text: "この履歴書・職務経歴書から情報を抽出してください。" },
+            { type: "input_text", text: "この履歴書・職務経歴書から情報を抽出し、JSON形式だけで返してください。" },
             isImage
               ? { type: "input_image", image_url: dataUrl, detail: "high" }
               : {
