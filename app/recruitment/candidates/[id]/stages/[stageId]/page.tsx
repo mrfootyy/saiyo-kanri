@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRecruitment } from "../../../../context";
@@ -309,17 +309,26 @@ function StageForm({
   const [decisionReason, setDecisionReason] = useState(existing?.decisionReason ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [rating, setRating] = useState<InterviewRating | null>(existing?.rating ?? null);
-  const [saved, setSaved] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const firstAutoSave = useRef(true);
+
+  const evaluationReady = useMemo(() => {
+    const gradesReady = evaluations.every((item) => item.grade !== null);
+    const reasonReady = decisionReason.trim().length > 0;
+    const ratingReady = isDocumentStage || rating !== null;
+    return gradesReady && reasonReady && ratingReady;
+  }, [decisionReason, evaluations, isDocumentStage, rating]);
+
+  const evaluationHelpText = isDocumentStage
+    ? "すべての評価項目と合否判断の理由を入力すると、判定を選べます。"
+    : "総合評価、すべての評価項目、合否判断の理由を入力すると、判定を選べます。";
 
   function updateEval(i: number, patch: Partial<EvaluationItem>) {
     setEvaluations((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
   }
 
-  function handleSave() {
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-
-    const newRecord: InterviewRecord = {
+  function buildRecord(): InterviewRecord {
+    return {
       id: existing?.id ?? crypto.randomUUID(),
       stageName: stage.name,
       date,
@@ -332,28 +341,33 @@ function StageForm({
       format: showFormat ? format : undefined,
       zoomUrl: showFormat && format === "オンライン" && zoomUrl.trim() ? zoomUrl.trim() : undefined,
     };
+  }
+
+  function persistRecord(record: InterviewRecord) {
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     const updated = existing
-      ? records.map((r) => (r.id === existing.id ? newRecord : r))
-      : [...records, newRecord];
+      ? records.map((r) => (r.id === existing.id ? record : r))
+      : [...records, record];
 
     const notifications: SlackNotification[] = [];
 
     // 合否結果が変わったらSlack通知
-    if (result !== null && result !== existing?.result) {
-      const resultEmoji = result === "通過" ? "✅" : result === "保留" ? "⚠️" : "❌";
+    if (record.result !== null && record.result !== existing?.result) {
+      const resultEmoji = record.result === "通過" ? "✅" : record.result === "保留" ? "⚠️" : "❌";
       notifications.push({
         id: crypto.randomUUID(),
         candidateId,
         candidateName,
         sentAt: timestamp,
         channel: "#採用チャンネル",
-        message: `${resultEmoji} ${candidateName}さんの【${stage.name}】の判定が「${result}」になりました。`,
+        message: `${resultEmoji} ${candidateName}さんの【${stage.name}】の判定が「${record.result}」になりました。`,
       });
     }
 
     const prevInterviewers = new Set(existing?.interviewers ?? []);
-    const addedInterviewers = interviewers.filter((name) => !prevInterviewers.has(name));
+    const addedInterviewers = record.interviewers.filter((name) => !prevInterviewers.has(name));
     if (addedInterviewers.length > 0) {
       const mentions = addedInterviewers.map((name) => getInterviewerMention(name)).join(" ");
       notifications.push({
@@ -367,9 +381,23 @@ function StageForm({
     }
 
     onSave(updated, notifications);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2500);
   }
+
+  useEffect(() => {
+    if (firstAutoSave.current) {
+      firstAutoSave.current = false;
+      return;
+    }
+
+    setSaveState("saving");
+    const timer = window.setTimeout(() => {
+      persistRecord(buildRecord());
+    }, 700);
+
+    return () => window.clearTimeout(timer);
+  }, [date, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
 
   return (
     <div className="space-y-5">
@@ -377,13 +405,24 @@ function StageForm({
       <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-gray-500">判定</p>
         <p className="mb-5 text-xl font-bold text-gray-900">この選考の合否を選択してください</p>
+        {!evaluationReady && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            {evaluationHelpText}
+          </div>
+        )}
         <div className="flex gap-3">
           {RESULT_OPTIONS.map((r) => (
             <button
               key={r}
-              onClick={() => setResult(result === r ? null : r)}
+              disabled={!evaluationReady}
+              onClick={() => {
+                if (!evaluationReady) return;
+                setResult(result === r ? null : r);
+              }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 py-5 text-xl font-bold transition-all ${
-                result === r ? RESULT_BUTTON[r] : `${RESULT_IDLE[r]}`
+                !evaluationReady
+                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
+                  : result === r ? RESULT_BUTTON[r] : `${RESULT_IDLE[r]}`
               }`}
             >
               <span className="text-2xl">{RESULT_ICON[r]}</span>
@@ -698,16 +737,18 @@ function StageForm({
         </>
       )}
 
-      {/* 保存ボタン */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          className={`rounded-xl px-8 py-3.5 text-base font-bold text-white shadow-sm transition-all ${
-            saved ? "bg-green-600 shadow-green-200" : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
+      <div className="sticky bottom-4 flex justify-end">
+        <div
+          className={`rounded-xl border px-4 py-2.5 text-sm font-bold shadow-sm transition-all ${
+            saveState === "saved"
+              ? "border-green-200 bg-green-50 text-green-700"
+              : saveState === "saving"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-gray-200 bg-white text-gray-500"
           }`}
         >
-          {saved ? "✓ 保存しました" : "保存する"}
-        </button>
+          {saveState === "saved" ? "✓ 自動保存しました" : saveState === "saving" ? "自動保存中..." : "入力内容は自動保存されます"}
+        </div>
       </div>
     </div>
   );

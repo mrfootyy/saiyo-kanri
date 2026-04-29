@@ -153,7 +153,6 @@ function CandidateDetail({
   const [skills, setSkills] = useState<string[]>(candidate.skills ?? []);
   const [companies, setCompanies] = useState<string[]>(candidate.companies ?? []);
   const [experienceYears, setExperienceYears] = useState(candidate.experienceYears ?? "");
-  const [githubUrl, setGithubUrl] = useState(candidate.githubUrl ?? "");
   const [status, setStatus] = useState<CandidateStatus>(candidate.status);
   const [interviewers, setInterviewers] = useState<string[]>(candidate.interviewers);
   const [memo, setMemo] = useState(candidate.memo);
@@ -207,7 +206,6 @@ function CandidateDetail({
       skills,
       companies,
       experienceYears,
-      githubUrl: githubUrl.trim() || undefined,
       interviewRecords: records,
       ...overrides,
     };
@@ -254,7 +252,6 @@ function CandidateDetail({
     const nextPhone = info.phone ?? phone;
     const nextAge = info.age ?? age;
     const nextExperienceYears = info.experienceYears ?? experienceYears;
-    const nextGithubUrl = info.githubUrl ?? githubUrl;
 
     if (info.email) setEmail(info.email);
     if (info.phone) setPhone(info.phone);
@@ -262,7 +259,6 @@ function CandidateDetail({
     if (info.skills?.length) setSkills(nextSkills);
     if (info.companies?.length) setCompanies(nextCompanies);
     if (info.experienceYears) setExperienceYears(info.experienceYears);
-    if (info.githubUrl) setGithubUrl(info.githubUrl);
 
     return {
       email: nextEmail,
@@ -271,7 +267,6 @@ function CandidateDetail({
       skills: nextSkills,
       companies: nextCompanies,
       experienceYears: nextExperienceYears,
-      githubUrl: nextGithubUrl.trim() || undefined,
     };
   }
 
@@ -328,7 +323,6 @@ function CandidateDetail({
           skills,
           companies,
           experienceYears,
-          githubUrl,
           portfolioUrl,
           memo,
           interviewers,
@@ -397,8 +391,7 @@ function CandidateDetail({
     extracted.age ||
     extracted.skills?.length ||
     extracted.companies?.length ||
-    extracted.experienceYears ||
-    extracted.githubUrl
+    extracted.experienceYears
   );
   const syncedStatus = deriveCandidateStatusFromFlow(records, interviewStages, status);
 
@@ -582,31 +575,19 @@ function CandidateDetail({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">経験年数</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    max="50"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(e.target.value)}
-                    placeholder="5"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-8 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">年</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">GitHub URL</label>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">経験年数</label>
+              <div className="relative max-w-xs">
                 <input
-                  type="url"
-                  value={githubUrl}
-                  onChange={(e) => setGithubUrl(e.target.value)}
-                  placeholder="https://github.com/username"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(e.target.value)}
+                  placeholder="5"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-8 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">年</span>
               </div>
             </div>
 
@@ -630,7 +611,7 @@ function CandidateDetail({
 
             <div className="space-y-2">
               <DocumentUpload
-                label="履歴書（アップロード後にメール・電話・年齢・GitHub URLを自動読み取り）"
+                label="履歴書（アップロード後にメール・電話・年齢を自動読み取り）"
                 file={cvFile}
                 onChange={handleCvUpload}
               />
@@ -663,7 +644,6 @@ function CandidateDetail({
                         {!!extracted.skills?.length && <p>スキル: <span className="font-medium">{extracted.skills.join(", ")}</span></p>}
                         {!!extracted.companies?.length && <p>経験企業: <span className="font-medium">{extracted.companies.join(", ")}</span></p>}
                         {extracted.experienceYears && <p>経験年数: <span className="font-medium">{extracted.experienceYears}年</span></p>}
-                        {extracted.githubUrl && <p>GitHub: <span className="font-medium">{extracted.githubUrl}</span></p>}
                       </div>
                       <button onClick={applyExtracted}
                         className="mt-3 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
