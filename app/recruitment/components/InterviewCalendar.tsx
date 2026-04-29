@@ -115,7 +115,7 @@ export default function InterviewCalendar({ candidates }: Props) {
       </div>
 
       {/* 2カラム */}
-      <div className="grid min-h-[520px] grid-cols-1 divide-y divide-gray-100 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:divide-x lg:divide-y-0">
+      <div className="grid min-h-[520px] grid-cols-1 divide-y divide-gray-100 lg:grid-cols-[minmax(0,1.35fr)_320px] lg:divide-x lg:divide-y-0">
         {/* 左：カレンダーグリッド */}
         <div className="p-8">
           <div className="mb-4 grid grid-cols-7">
@@ -169,32 +169,32 @@ export default function InterviewCalendar({ candidates }: Props) {
 
         {/* 右：直近の面接 / 選択日の面接 */}
         <div className="flex flex-col">
-          <div className="border-b border-gray-100 px-8 py-6">
-            <p className="text-xl font-bold text-gray-700">{rightPanelTitle}</p>
-            <p className="mt-1 text-sm text-gray-400">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <p className="text-base font-bold text-gray-700">{rightPanelTitle}</p>
+            <p className="mt-1 text-xs text-gray-400">
               {rightPanelDate ? "選択した日の予定です" : "今日以降の予定を表示しています"}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto">
             {rightPanelEvents.length === 0 ? (
-              <p className="px-8 py-10 text-sm text-gray-400">予定はありません。</p>
+              <p className="px-5 py-6 text-sm text-gray-400">予定はありません。</p>
             ) : (
               <div className="divide-y divide-gray-50">
                 {rightPanelEvents.map((ev) => (
                   <Link
                     key={ev.recordId}
                     href={`/recruitment/candidates/${ev.candidateId}`}
-                    className="flex items-center gap-4 px-8 py-5 transition-colors hover:bg-blue-50"
+                    className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-blue-50"
                   >
-                    <div className="h-3 w-3 flex-shrink-0 rounded-full bg-blue-500" />
+                    <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
                     <div className="min-w-0 flex-1">
                       {!rightPanelDate && (
-                        <p className="text-sm font-medium text-gray-400">{ev.date.replace(/-/g, "/")}</p>
+                        <p className="text-xs font-medium text-gray-400">{ev.date.replace(/-/g, "/")}</p>
                       )}
-                      <p className="truncate text-xl font-bold text-gray-900">{ev.candidateName}</p>
-                      <p className="mt-0.5 truncate text-base text-gray-500">{ev.stageName}</p>
+                      <p className="truncate text-sm font-bold text-gray-900">{ev.candidateName}</p>
+                      <p className="mt-0.5 truncate text-xs text-gray-500">{ev.stageName}</p>
                     </div>
-                    <svg className="h-6 w-6 flex-shrink-0 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 flex-shrink-0 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
