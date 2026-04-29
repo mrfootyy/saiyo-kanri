@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Candidate } from "../types";
 
 type InterviewEvent = {
+  date: string;
   candidateId: string;
   candidateName: string;
   stageName: string;
@@ -29,23 +30,40 @@ export default function InterviewCalendar({ candidates }: Props) {
 
   const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const eventsByDate = useMemo(() => {
-    const map = new Map<string, InterviewEvent[]>();
+  // 全面接イベントをフラットに収集
+  const allEvents = useMemo<InterviewEvent[]>(() => {
+    const events: InterviewEvent[] = [];
     for (const candidate of candidates) {
       for (const record of candidate.interviewRecords) {
         if (!record.date) continue;
-        const list = map.get(record.date) ?? [];
-        list.push({
+        events.push({
+          date: record.date,
           candidateId: candidate.id,
           candidateName: candidate.name,
           stageName: record.stageName,
           recordId: record.id,
         });
-        map.set(record.date, list);
       }
     }
-    return map;
+    return events.sort((a, b) => a.date.localeCompare(b.date));
   }, [candidates]);
+
+  // 表示月のイベントを日付別にまとめる
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, InterviewEvent[]>();
+    for (const ev of allEvents) {
+      const list = map.get(ev.date) ?? [];
+      list.push(ev);
+      map.set(ev.date, list);
+    }
+    return map;
+  }, [allEvents]);
+
+  // 直近の面接（今日以降、最大10件）
+  const upcomingEvents = useMemo(
+    () => allEvents.filter((e) => e.date >= todayStr).slice(0, 10),
+    [allEvents, todayStr]
+  );
 
   const { daysInMonth, firstDayOfWeek } = useMemo(() => ({
     daysInMonth: new Date(year, month + 1, 0).getDate(),
@@ -64,135 +82,119 @@ export default function InterviewCalendar({ candidates }: Props) {
 
   const selectedEvents = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : [];
 
-  const totalScheduled = useMemo(() => {
-    let count = 0;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const ds = toDateStr(year, month, d);
-      count += eventsByDate.get(ds)?.length ?? 0;
-    }
-    return count;
-  }, [eventsByDate, year, month, daysInMonth]);
+  // 右パネルに表示するイベント（日付選択中ならその日、なければ直近）
+  const rightPanelDate = selectedDate;
+  const rightPanelEvents = rightPanelDate ? selectedEvents : upcomingEvents;
+  const rightPanelTitle = rightPanelDate
+    ? `${rightPanelDate.replace(/-/g, "/")} の面接`
+    : "直近の面接予定者";
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">
+        <div className="flex items-center gap-3">
+          <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <h2 className="text-sm font-bold text-gray-700">面接カレンダー</h2>
-          {totalScheduled > 0 && (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-              {totalScheduled}件
-            </span>
-          )}
+          <h2 className="text-2xl font-bold text-gray-900">面接カレンダー</h2>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={prevMonth}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-4">
+          <button onClick={prevMonth} className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="min-w-[6rem] text-center text-sm font-semibold text-gray-700">
-            {year}年{month + 1}月
-          </span>
-          <button
-            onClick={nextMonth}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="min-w-[12rem] text-center text-2xl font-bold text-gray-900">{year}年{month + 1}月</span>
+          <button onClick={nextMonth} className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
       </div>
 
-      <div className="p-4">
-        {/* 曜日ヘッダー */}
-        <div className="mb-1 grid grid-cols-7">
-          {DOW.map((d, i) => (
-            <div
-              key={d}
-              className={`py-1 text-center text-xs font-semibold ${
-                i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-gray-400"
-              }`}
-            >
-              {d}
-            </div>
-          ))}
-        </div>
+      {/* 2カラム */}
+      <div className="grid min-h-[520px] grid-cols-1 divide-y divide-gray-100 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:divide-x lg:divide-y-0">
+        {/* 左：カレンダーグリッド */}
+        <div className="p-8">
+          <div className="mb-4 grid grid-cols-7">
+            {DOW.map((d, i) => (
+              <div key={d} className={`py-2 text-center text-lg font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-500" : "text-gray-400"}`}>
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e${i}`} className="min-h-20" />)}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const dateStr = toDateStr(year, month, day);
+              const events = eventsByDate.get(dateStr) ?? [];
+              const hasEvents = events.length > 0;
+              const isToday = dateStr === todayStr;
+              const isSelected = dateStr === selectedDate;
+              const dow = (firstDayOfWeek + i) % 7;
 
-        {/* カレンダーグリッド */}
-        <div className="grid grid-cols-7 gap-0.5">
-          {Array.from({ length: firstDayOfWeek }, (_, i) => (
-            <div key={`empty-${i}`} />
-          ))}
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day = i + 1;
-            const dateStr = toDateStr(year, month, day);
-            const events = eventsByDate.get(dateStr) ?? [];
-            const hasEvents = events.length > 0;
-            const isToday = dateStr === todayStr;
-            const isSelected = dateStr === selectedDate;
-            const dow = (firstDayOfWeek + i) % 7;
-
-            return (
-              <button
-                key={day}
-                onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                className={`relative flex flex-col items-center rounded-lg py-1.5 text-xs transition-colors ${
-                  isSelected
-                    ? "bg-blue-600 text-white"
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDate(isSelected ? null : dateStr)}
+                  className={`relative flex min-h-20 flex-col items-center justify-center rounded-2xl text-xl font-semibold transition-colors ${
+                    isSelected
+                      ? "bg-blue-600 text-white"
                     : isToday
-                      ? "bg-blue-50 font-bold text-blue-700"
-                      : dow === 0
-                        ? "text-red-400 hover:bg-red-50"
-                        : dow === 6
-                          ? "text-blue-400 hover:bg-blue-50"
-                          : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                <span>{day}</span>
-                {hasEvents && (
-                  <span
-                    className={`mt-0.5 h-1.5 w-1.5 rounded-full ${
-                      isSelected ? "bg-white" : "bg-blue-500"
-                    }`}
-                  />
-                )}
-                {hasEvents && !isSelected && events.length > 1 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">
-                    {events.length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                        ? "bg-blue-50 font-bold text-blue-700"
+                        : dow === 0
+                          ? "text-red-400 hover:bg-red-50"
+                          : dow === 6
+                            ? "text-blue-400 hover:bg-blue-50"
+                            : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span>{day}</span>
+                  {hasEvents && (
+                    <span className={`mt-2 h-2.5 w-2.5 rounded-full ${isSelected ? "bg-white" : "bg-blue-500"}`} />
+                  )}
+                  {hasEvents && events.length > 1 && !isSelected && (
+                    <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-500 px-1.5 text-sm font-bold text-white">
+                      {events.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 選択日の面接一覧 */}
-        {selectedDate && (
-          <div className="mt-3 border-t border-gray-100 pt-3">
-            <p className="mb-2 text-xs font-semibold text-gray-500">
-              {selectedDate.replace(/-/g, "/")} の面接
+        {/* 右：直近の面接 / 選択日の面接 */}
+        <div className="flex flex-col">
+          <div className="border-b border-gray-100 px-8 py-6">
+            <p className="text-xl font-bold text-gray-700">{rightPanelTitle}</p>
+            <p className="mt-1 text-sm text-gray-400">
+              {rightPanelDate ? "選択した日の予定です" : "今日以降の予定を表示しています"}
             </p>
-            {selectedEvents.length === 0 ? (
-              <p className="text-xs text-gray-400">面接の予定はありません。</p>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {rightPanelEvents.length === 0 ? (
+              <p className="px-8 py-10 text-sm text-gray-400">予定はありません。</p>
             ) : (
-              <div className="space-y-1.5">
-                {selectedEvents.map((ev) => (
+              <div className="divide-y divide-gray-50">
+                {rightPanelEvents.map((ev) => (
                   <Link
                     key={ev.recordId}
                     href={`/recruitment/candidates/${ev.candidateId}`}
-                    className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 transition-colors hover:bg-blue-100"
+                    className="flex items-center gap-4 px-8 py-5 transition-colors hover:bg-blue-50"
                   >
-                    <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500" />
-                    <span className="text-xs font-semibold text-gray-800">{ev.candidateName}</span>
-                    <span className="text-xs text-gray-500">{ev.stageName}</span>
-                    <svg className="ml-auto h-3.5 w-3.5 flex-shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="h-3 w-3 flex-shrink-0 rounded-full bg-blue-500" />
+                    <div className="min-w-0 flex-1">
+                      {!rightPanelDate && (
+                        <p className="text-sm font-medium text-gray-400">{ev.date.replace(/-/g, "/")}</p>
+                      )}
+                      <p className="truncate text-xl font-bold text-gray-900">{ev.candidateName}</p>
+                      <p className="mt-0.5 truncate text-base text-gray-500">{ev.stageName}</p>
+                    </div>
+                    <svg className="h-6 w-6 flex-shrink-0 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
@@ -200,13 +202,7 @@ export default function InterviewCalendar({ candidates }: Props) {
               </div>
             )}
           </div>
-        )}
-
-        {totalScheduled === 0 && (
-          <p className="mt-3 text-center text-xs text-gray-400">
-            この月に面接の予定はありません。
-          </p>
-        )}
+        </div>
       </div>
     </div>
   );
