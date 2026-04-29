@@ -59,9 +59,9 @@ export default function InterviewCalendar({ candidates }: Props) {
     return map;
   }, [allEvents]);
 
-  // 直近の面接（今日以降、最大10件）
+  // 直近の面接（今日以降、最大5件）
   const upcomingEvents = useMemo(
-    () => allEvents.filter((e) => e.date >= todayStr).slice(0, 10),
+    () => allEvents.filter((e) => e.date >= todayStr).slice(0, 5),
     [allEvents, todayStr]
   );
 
@@ -85,6 +85,7 @@ export default function InterviewCalendar({ candidates }: Props) {
   // 右パネルに表示するイベント（日付選択中ならその日、なければ直近）
   const rightPanelDate = selectedDate;
   const rightPanelEvents = rightPanelDate ? selectedEvents : upcomingEvents;
+  const hiddenEventCount = rightPanelDate ? 0 : Math.max(0, allEvents.filter((e) => e.date >= todayStr).length - upcomingEvents.length);
   const rightPanelTitle = rightPanelDate
     ? `${rightPanelDate.replace(/-/g, "/")} の面接`
     : "直近の面接予定者";
@@ -92,22 +93,22 @@ export default function InterviewCalendar({ candidates }: Props) {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       {/* ヘッダー */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">
-        <div className="flex items-center gap-3">
-          <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <h2 className="text-2xl font-bold text-gray-900">面接カレンダー</h2>
+          <h2 className="text-sm font-bold text-gray-700">面接カレンダー</h2>
         </div>
-        <div className="flex items-center gap-4">
-          <button onClick={prevMonth} className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <span className="min-w-[12rem] text-center text-2xl font-bold text-gray-900">{year}年{month + 1}月</span>
-          <button onClick={nextMonth} className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="min-w-[7rem] text-center text-sm font-semibold text-gray-700">{year}年{month + 1}月</span>
+          <button onClick={nextMonth} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
@@ -115,18 +116,18 @@ export default function InterviewCalendar({ candidates }: Props) {
       </div>
 
       {/* 2カラム */}
-      <div className="grid min-h-[520px] grid-cols-1 divide-y divide-gray-100 lg:grid-cols-[minmax(0,1.35fr)_320px] lg:divide-x lg:divide-y-0">
+      <div className="grid min-h-[460px] grid-cols-1 divide-y divide-gray-100 lg:grid-cols-[minmax(0,1.35fr)_320px] lg:divide-x lg:divide-y-0">
         {/* 左：カレンダーグリッド */}
         <div className="p-8">
-          <div className="mb-4 grid grid-cols-7">
+          <div className="mb-3 grid grid-cols-7">
             {DOW.map((d, i) => (
-              <div key={d} className={`py-2 text-center text-lg font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-500" : "text-gray-400"}`}>
+              <div key={d} className={`py-2 text-center text-sm font-bold ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-500" : "text-gray-400"}`}>
                 {d}
               </div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e${i}`} className="min-h-20" />)}
+            {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e${i}`} className="min-h-16" />)}
             {Array.from({ length: daysInMonth }, (_, i) => {
               const day = i + 1;
               const dateStr = toDateStr(year, month, day);
@@ -140,7 +141,7 @@ export default function InterviewCalendar({ candidates }: Props) {
                 <button
                   key={day}
                   onClick={() => setSelectedDate(isSelected ? null : dateStr)}
-                  className={`relative flex min-h-20 flex-col items-center justify-center rounded-2xl text-xl font-semibold transition-colors ${
+                  className={`relative flex min-h-16 flex-col items-center justify-center rounded-xl text-base font-semibold transition-colors ${
                     isSelected
                       ? "bg-blue-600 text-white"
                     : isToday
@@ -154,10 +155,10 @@ export default function InterviewCalendar({ candidates }: Props) {
                 >
                   <span>{day}</span>
                   {hasEvents && (
-                    <span className={`mt-2 h-2.5 w-2.5 rounded-full ${isSelected ? "bg-white" : "bg-blue-500"}`} />
+                    <span className={`mt-1.5 h-2 w-2 rounded-full ${isSelected ? "bg-white" : "bg-blue-500"}`} />
                   )}
                   {hasEvents && events.length > 1 && !isSelected && (
-                    <span className="absolute right-2 top-2 flex h-7 min-w-7 items-center justify-center rounded-full bg-blue-500 px-1.5 text-sm font-bold text-white">
+                    <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1 text-xs font-bold text-white">
                       {events.length}
                     </span>
                   )}
@@ -199,6 +200,11 @@ export default function InterviewCalendar({ candidates }: Props) {
                     </svg>
                   </Link>
                 ))}
+                {hiddenEventCount > 0 && (
+                  <p className="px-5 py-3 text-xs font-medium text-gray-400">
+                    ほか {hiddenEventCount} 件の予定があります
+                  </p>
+                )}
               </div>
             )}
           </div>
