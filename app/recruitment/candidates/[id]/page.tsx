@@ -231,7 +231,11 @@ function CandidateDetail({
     if (isExtractError(result)) {
       setExtractError(result.message);
     } else {
+      const extractedPatch = applyExtractedToForm(result);
       setExtracted(result);
+      onUpdate(buildCandidateUpdate({ ...documentPatch, ...extractedPatch }));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     }
   }
 
@@ -243,24 +247,24 @@ function CandidateDetail({
     await readDocument(file, setCvFile, { cvFile: file });
   }
 
-  function applyExtracted() {
-    if (!extracted) return;
-    const nextSkills = extracted.skills?.length ? [...new Set([...skills, ...extracted.skills])] : skills;
-    const nextCompanies = extracted.companies?.length ? [...new Set([...companies, ...extracted.companies])] : companies;
-    const nextEmail = extracted.email ?? email;
-    const nextPhone = extracted.phone ?? phone;
-    const nextAge = extracted.age ?? age;
-    const nextExperienceYears = extracted.experienceYears ?? experienceYears;
-    const nextGithubUrl = extracted.githubUrl ?? githubUrl;
+  function applyExtractedToForm(info: ExtractedInfo): Partial<Candidate> {
+    const nextSkills = info.skills?.length ? [...new Set([...skills, ...info.skills])] : skills;
+    const nextCompanies = info.companies?.length ? [...new Set([...companies, ...info.companies])] : companies;
+    const nextEmail = info.email ?? email;
+    const nextPhone = info.phone ?? phone;
+    const nextAge = info.age ?? age;
+    const nextExperienceYears = info.experienceYears ?? experienceYears;
+    const nextGithubUrl = info.githubUrl ?? githubUrl;
 
-    if (extracted.email) setEmail(extracted.email);
-    if (extracted.phone) setPhone(extracted.phone);
-    if (extracted.age) setAge(extracted.age);
-    if (extracted.skills?.length) setSkills(nextSkills);
-    if (extracted.companies?.length) setCompanies(nextCompanies);
-    if (extracted.experienceYears) setExperienceYears(extracted.experienceYears);
-    if (extracted.githubUrl) setGithubUrl(extracted.githubUrl);
-    onUpdate(buildCandidateUpdate({
+    if (info.email) setEmail(info.email);
+    if (info.phone) setPhone(info.phone);
+    if (info.age) setAge(info.age);
+    if (info.skills?.length) setSkills(nextSkills);
+    if (info.companies?.length) setCompanies(nextCompanies);
+    if (info.experienceYears) setExperienceYears(info.experienceYears);
+    if (info.githubUrl) setGithubUrl(info.githubUrl);
+
+    return {
       email: nextEmail,
       phone: nextPhone,
       age: nextAge,
@@ -268,7 +272,12 @@ function CandidateDetail({
       companies: nextCompanies,
       experienceYears: nextExperienceYears,
       githubUrl: nextGithubUrl.trim() || undefined,
-    }));
+    };
+  }
+
+  function applyExtracted() {
+    if (!extracted) return;
+    onUpdate(buildCandidateUpdate(applyExtractedToForm(extracted)));
     setExtracted(null);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -644,7 +653,7 @@ function CandidateDetail({
               )}
               {!extracting && extracted && (
                 <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs">
-                  <p className="font-medium text-green-800 mb-2">読み取り結果</p>
+                  <p className="font-medium text-green-800 mb-2">読み取り結果（基本情報に自動反映済み）</p>
                   {hasExtracted ? (
                     <>
                       <div className="space-y-1 text-green-700">
@@ -658,7 +667,7 @@ function CandidateDetail({
                       </div>
                       <button onClick={applyExtracted}
                         className="mt-3 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
-                        基本情報に反映して確認する →
+                        基本情報を確認する →
                       </button>
                     </>
                   ) : (

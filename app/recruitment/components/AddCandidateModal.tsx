@@ -19,6 +19,8 @@ export default function AddCandidateModal({ onClose }: Props) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [age, setAge] = useState("");
+  const [companies, setCompanies] = useState("");
+  const [experienceYears, setExperienceYears] = useState("");
   const [memo, setMemo] = useState("");
   const [error, setError] = useState("");
 
@@ -40,6 +42,8 @@ export default function AddCandidateModal({ onClose }: Props) {
       email: email.trim(),
       phone: phone.trim(),
       age: age.trim(),
+      companies: companies.split(",").map((v) => v.trim()).filter(Boolean),
+      experienceYears: experienceYears.trim(),
       interviewers: [],
       memo: memo.trim(),
       updatedAt: today,
@@ -52,7 +56,7 @@ export default function AddCandidateModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+      <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
         {/* ヘッダー */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
           <div>
@@ -160,6 +164,35 @@ export default function AddCandidateModal({ onClose }: Props) {
                 className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 pr-10 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">歳</span>
+            </div>
+          </div>
+
+          {/* 経験情報 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">経験企業</label>
+              <input
+                type="text"
+                value={companies}
+                onChange={(e) => setCompanies(e.target.value)}
+                placeholder="株式会社サンプル, Example Inc."
+                className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">経験年数</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(e.target.value)}
+                  placeholder="5"
+                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 pr-10 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">年</span>
+              </div>
             </div>
           </div>
 
