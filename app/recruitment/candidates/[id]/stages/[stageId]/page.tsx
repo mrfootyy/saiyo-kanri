@@ -302,6 +302,7 @@ function StageForm({
 
   const [result, setResult] = useState<InterviewResult | null>(existing?.result ?? null);
   const [date, setDate] = useState(existing?.date ?? new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(existing?.time ?? "");
   const [format, setFormat] = useState<InterviewFormat>(existing?.format ?? stage.format);
   const [zoomUrl, setZoomUrl] = useState(existing?.zoomUrl ?? "");
   const [interviewers, setInterviewers] = useState<string[]>(existing?.interviewers ?? []);
@@ -333,6 +334,7 @@ function StageForm({
       id: existing?.id ?? crypto.randomUUID(),
       stageName: stage.name,
       date,
+      time: time.trim() || undefined,
       interviewers,
       notes,
       rating,
@@ -398,7 +400,7 @@ function StageForm({
     }, 700);
 
     return () => window.clearTimeout(timer);
-  }, [date, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
+  }, [date, time, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
 
   return (
     <div className="space-y-5">
@@ -437,13 +439,21 @@ function StageForm({
       {isDocumentStage ? (
         <>
           <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-200">
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">実施日</p>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">実施日時</p>
+            <div className="flex gap-3">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="flex-1 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <input
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="w-36 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
           </div>
 
           {/* 書類選考 評価表 */}
@@ -539,6 +549,13 @@ function StageForm({
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  placeholder="開始時刻"
+                  className="mt-2 w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
 

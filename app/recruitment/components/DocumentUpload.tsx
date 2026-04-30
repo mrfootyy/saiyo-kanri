@@ -12,6 +12,7 @@ type Props = {
 };
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 function isAcceptedFile(file: File) {
   if (ACCEPTED_TYPES.includes(file.type)) return true;
@@ -43,6 +44,11 @@ export default function DocumentUpload({ label, file, accept, onChange }: Props)
 
     if (!isAcceptedFile(f)) {
       setError("PDFまたは画像ファイルを選択してください。");
+      return;
+    }
+
+    if (f.size > MAX_FILE_BYTES) {
+      setError("3MB以下のPDFまたは画像ファイルを選択してください。");
       return;
     }
 
@@ -138,7 +144,7 @@ export default function DocumentUpload({ label, file, accept, onChange }: Props)
               <p className="text-xs text-gray-500">
                 クリックまたはドラッグでアップロード
               </p>
-              <p className="text-xs text-gray-400">PDF・画像（JPEG / PNG / GIF / WebP）</p>
+              <p className="text-xs text-gray-400">PDF・画像（JPEG / PNG / GIF / WebP、3MB以下）</p>
             </div>
             {error && <p className="mt-1.5 text-xs font-medium text-red-600">{error}</p>}
           </>

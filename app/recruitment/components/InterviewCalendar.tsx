@@ -6,6 +6,7 @@ import { Candidate } from "../types";
 
 type InterviewEvent = {
   date: string;
+  time?: string;
   candidateId: string;
   candidateName: string;
   stageName: string;
@@ -38,6 +39,7 @@ export default function InterviewCalendar({ candidates }: Props) {
         if (!record.date) continue;
         events.push({
           date: record.date,
+          time: record.time,
           candidateId: candidate.id,
           candidateName: candidate.name,
           stageName: record.stageName,
@@ -193,7 +195,7 @@ export default function InterviewCalendar({ candidates }: Props) {
                         <p className="text-xs font-medium text-gray-400">{ev.date.replace(/-/g, "/")}</p>
                       )}
                       <p className="truncate text-sm font-bold text-gray-900">{ev.candidateName}</p>
-                      <p className="mt-0.5 truncate text-xs text-gray-500">{ev.stageName}</p>
+                      <p className="mt-0.5 truncate text-xs text-gray-500">{ev.stageName}{ev.time ? ` · ${ev.time}` : ""}</p>
                     </div>
                     <svg className="h-4 w-4 flex-shrink-0 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

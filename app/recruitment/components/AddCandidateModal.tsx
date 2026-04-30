@@ -26,6 +26,10 @@ export default function AddCandidateModal({ onClose }: Props) {
   const [extractError, setExtractError] = useState("");
   const [error, setError] = useState("");
 
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [source, setSource] = useState("");
+
   const [extractedPhone, setExtractedPhone] = useState("");
   const [extractedAge, setExtractedAge] = useState("");
   const [extractedSkills, setExtractedSkills] = useState<string[]>([]);
@@ -88,6 +92,8 @@ export default function AddCandidateModal({ onClose }: Props) {
       companies: extractedCompanies,
       skills: extractedSkills.length ? extractedSkills : undefined,
       githubUrl: extractedGithubUrl || undefined,
+      tags: tags.length ? tags : undefined,
+      source: source.trim() || undefined,
       interviewers: [],
       memo: "",
       updatedAt: today,
@@ -187,6 +193,55 @@ export default function AddCandidateModal({ onClose }: Props) {
               placeholder="example@email.com"
               className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
+          </div>
+
+          {/* 応募ソース */}
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">応募ソース</label>
+            <input
+              type="text"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder="例：Indeed、Wantedly、エージェント（○○社）"
+              className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {/* タグ */}
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">タグ</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    const t = tagInput.trim();
+                    if (!tags.includes(t)) setTags((prev) => [...prev, t]);
+                    setTagInput("");
+                  }
+                }}
+                placeholder="タグを入力してEnter"
+                className="flex-1 rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              />
+              <button type="button" onClick={() => {
+                const t = tagInput.trim();
+                if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                setTagInput("");
+              }} className="rounded-xl border-2 border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">追加</button>
+            </div>
+            {tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {tags.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                    {t}
+                    <button onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="text-blue-400 hover:text-blue-700">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 書類アップロード（2カラム） */}

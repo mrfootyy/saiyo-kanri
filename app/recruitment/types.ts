@@ -40,6 +40,11 @@ export type Candidate = {
 
   githubUrl?: string;
   interviewRecords: InterviewRecord[];
+  tags?: string[];
+  source?: string;
+  archivedAt?: string;
+  rejectionReason?: string;
+  assignedQuestions?: string[];
 };
 
 export type SlackNotification = {
@@ -61,6 +66,31 @@ export type EmailHistory = {
   summary: string;
 };
 
+export type EmailTemplate = {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  category: "書類選考" | "面接案内" | "合否通知" | "内定" | "その他";
+};
+
+export type HireGoal = {
+  position: string;
+  target: number;
+};
+
+export type FlowTemplate = {
+  id: string;
+  name: string;
+  stages: Omit<InterviewStage, "id">[];
+};
+
+export type SlackChannelConfig = {
+  statusChange: string;
+  interviewAssign: string;
+  offerDecision: string;
+};
+
 export type StatusFilterValue = "すべて" | CandidateStatus;
 
 export type InterviewRating = 1 | 2 | 3 | 4 | 5;
@@ -77,6 +107,7 @@ export type InterviewRecord = {
   id: string;
   stageName: string;
   date: string;
+  time?: string;
   interviewers: string[];
   notes: string;
   rating: InterviewRating | null;

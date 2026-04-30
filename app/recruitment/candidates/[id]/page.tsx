@@ -30,7 +30,7 @@ const RESULT_COLORS: Record<InterviewResult, string> = {
   不採用: "bg-red-100 text-red-600",
 };
 
-type Tab = "基本情報" | "書類" | "履歴";
+type Tab = "基本情報" | "書類" | "評価" | "質問" | "履歴";
 
 function StarRating({
   value,
@@ -60,7 +60,7 @@ function StarRating({
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, interviewStages, interviewers: interviewerOptions } =
+  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, interviewStages, interviewers: interviewerOptions, interviewQuestions } =
     useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
@@ -76,7 +76,7 @@ export default function CandidateDetailPage() {
     );
   }
 
-  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} interviewStages={interviewStages} interviewerOptions={interviewerOptions} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} />;
+  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} interviewStages={interviewStages} interviewerOptions={interviewerOptions} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} interviewQuestions={interviewQuestions} />;
 }
 
 function CandidateDetail({
@@ -87,6 +87,7 @@ function CandidateDetail({
   interviewerOptions,
   onUpdate,
   onAddSlack,
+  interviewQuestions,
 }: {
   candidate: Candidate;
   allSlack: SlackNotification[];
@@ -95,6 +96,7 @@ function CandidateDetail({
   interviewerOptions: string[];
   onUpdate: (c: Candidate) => void;
   onAddSlack: (n: SlackNotification[]) => void;
+  interviewQuestions: import("../../types").InterviewQuestion[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("基本情報");
   const [saved, setSaved] = useState(false);
@@ -111,6 +113,12 @@ function CandidateDetail({
   const [status, setStatus] = useState<CandidateStatus>(candidate.status);
   const [interviewers, setInterviewers] = useState<string[]>(candidate.interviewers);
   const [memo, setMemo] = useState(candidate.memo);
+  const [tags, setTags] = useState<string[]>(candidate.tags ?? []);
+  const [tagInput, setTagInput] = useState("");
+  const [source, setSource] = useState(candidate.source ?? "");
+  const [rejectionReason, setRejectionReason] = useState(candidate.rejectionReason ?? "");
+  const [assignedQuestions, setAssignedQuestions] = useState<string[]>(candidate.assignedQuestions ?? []);
+  const [questionStageFilter, setQuestionStageFilter] = useState("すべて");
 
   // 書類
   const [resumeFile, setResumeFile] = useState<DocumentFile | undefined>(candidate.resumeFile);
@@ -150,6 +158,10 @@ function CandidateDetail({
       skills,
       companies,
       interviewRecords: records,
+      tags: tags.length ? tags : undefined,
+      source: source.trim() || undefined,
+      rejectionReason: rejectionReason.trim() || undefined,
+      assignedQuestions: assignedQuestions.length ? assignedQuestions : undefined,
       ...overrides,
     };
   }
@@ -301,7 +313,7 @@ function CandidateDetail({
 
       {/* タブ */}
       <div className="flex border-b border-gray-100 bg-white px-6">
-        {(["基本情報", "書類", "履歴"] as Tab[]).map((tab) => (
+        {(["基本情報", "書類", "評価", "質問", "履歴"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -460,6 +472,53 @@ function CandidateDetail({
                 placeholder="メモを入力"
                 className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">応募ソース</label>
+                <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
+                  placeholder="Indeed、Wantedly、エージェントなど"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">不採用・辞退理由</label>
+                <input type="text" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="例：スキル不足、条件不一致、他社内定"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">タグ</label>
+              <div className="flex gap-2">
+                <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && tagInput.trim()) {
+                      e.preventDefault();
+                      const t = tagInput.trim();
+                      if (!tags.includes(t)) setTags((prev) => [...prev, t]);
+                      setTagInput("");
+                    }
+                  }}
+                  placeholder="タグを入力してEnter"
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <button type="button" onClick={() => {
+                  const t = tagInput.trim();
+                  if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                  setTagInput("");
+                }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">追加</button>
+              </div>
+              {tags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {tags.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                      {t}
+                      <button onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="text-blue-400 hover:text-blue-700">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -549,6 +608,133 @@ function CandidateDetail({
                 <DocumentUpload label="" file={portfolioFile} onChange={setPortfolioFile} />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── 評価 ── */}
+        {activeTab === "評価" && (
+          <div className="space-y-4">
+            {records.length === 0 ? (
+              <p className="text-sm text-gray-400">まだ面接記録がありません。</p>
+            ) : (
+              records.map((r) => (
+                <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <span className="text-sm font-bold text-gray-900">{r.stageName}</span>
+                      <span className="ml-2 text-xs text-gray-400">{r.date}{r.time ? ` ${r.time}` : ""}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {r.result && (
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                          r.result === "通過" ? "bg-green-100 text-green-700" :
+                          r.result === "保留" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-red-100 text-red-600"
+                        }`}>{r.result}</span>
+                      )}
+                      {r.rating && (
+                        <span className="text-sm text-yellow-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                      )}
+                    </div>
+                  </div>
+                  {r.interviewers.length > 0 && (
+                    <p className="mb-2 text-xs text-gray-500">面接官: {r.interviewers.join(", ")}</p>
+                  )}
+                  {r.evaluations && r.evaluations.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-100 bg-gray-50">
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600">評価項目</th>
+                            <th className="w-16 px-3 py-2 text-center font-semibold text-gray-600">評点</th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-600">コメント</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {r.evaluations.map((ev) => (
+                            <tr key={ev.name} className="border-b border-gray-50 last:border-b-0">
+                              <td className="px-3 py-2 font-medium text-gray-700">{ev.name}</td>
+                              <td className="px-3 py-2 text-center">
+                                {ev.grade ? (
+                                  <span className={`inline-block rounded px-1.5 py-0.5 font-bold text-white ${
+                                    ev.grade === "5" ? "bg-violet-600" :
+                                    ev.grade === "4" ? "bg-green-600" :
+                                    ev.grade === "3" ? "bg-blue-600" :
+                                    ev.grade === "2" ? "bg-amber-500" : "bg-red-600"
+                                  }`}>{ev.grade}</span>
+                                ) : <span className="text-gray-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600">{ev.episode || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {r.decisionReason && (
+                    <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                      <span className="font-semibold text-gray-600">合否判断の理由：</span>{r.decisionReason}
+                    </div>
+                  )}
+                  {r.notes && (
+                    <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                      <span className="font-semibold">メモ：</span>{r.notes}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ── 質問 ── */}
+        {activeTab === "質問" && (
+          <div className="space-y-4">
+            <p className="text-xs text-gray-500">質問バンクからこの候補者の面接で使う質問を選択できます。</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {["すべて", ...Array.from(new Set(interviewQuestions.map((q) => q.stage)))].map((stage) => (
+                <button key={stage} onClick={() => setQuestionStageFilter(stage)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${questionStageFilter === stage ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                  {stage}
+                </button>
+              ))}
+            </div>
+            {interviewQuestions.filter((q) => questionStageFilter === "すべて" || q.stage === questionStageFilter).map((q) => {
+              const assigned = assignedQuestions.includes(q.id);
+              return (
+                <div key={q.id} className={`rounded-xl border p-4 transition-colors ${assigned ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{q.stage}</span>
+                        {q.tags.map((t) => <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{t}</span>)}
+                      </div>
+                      <p className="text-sm text-gray-800">{q.text}</p>
+                    </div>
+                    <button
+                      onClick={() => setAssignedQuestions((prev) =>
+                        assigned ? prev.filter((id) => id !== q.id) : [...prev, q.id]
+                      )}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors flex-shrink-0 ${
+                        assigned ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      {assigned ? "✓ 選択中" : "選択"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {interviewQuestions.length === 0 && (
+              <p className="text-sm text-gray-400">質問バンクに質問がありません。</p>
+            )}
+            {assignedQuestions.length > 0 && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-xs font-bold text-blue-800 mb-2">選択中: {assignedQuestions.length}件</p>
+                <button onClick={() => { handleSave(); }}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">保存する</button>
+              </div>
+            )}
           </div>
         )}
 

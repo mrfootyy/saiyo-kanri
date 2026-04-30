@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const MODEL = process.env.OPENAI_RESUME_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const byteLength = Buffer.byteLength(base64, "base64");
     if (byteLength > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
-        { error: "ファイルサイズが大きすぎます。15MB以下のPDFまたは画像をアップロードしてください。" },
+        { error: "ファイルサイズが大きすぎます。3MB以下のPDFまたは画像をアップロードしてください。" },
         { status: 400 }
       );
     }
