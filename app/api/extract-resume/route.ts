@@ -45,8 +45,7 @@ export async function POST(req: NextRequest) {
   "phone": "電話番号（ハイフン区切り）",
   "age": "年齢（数字のみ）",
   "skills": ["スキル1", "スキル2"],
-  "companies": ["株式会社○○", "合同会社△△"],
-  "experienceYears": "経験年数（数字のみ）",
+  "companies": [{"name": "株式会社○○", "years": "3"}, {"name": "合同会社△△", "years": "2"}],
   "githubUrl": "GitHubのURL"
 }
 
@@ -88,8 +87,18 @@ JSONのみを返してください。説明文は不要です。`;
       phone: typeof parsed.phone === "string" ? parsed.phone : undefined,
       age: parsed.age != null ? String(parsed.age) : undefined,
       skills: Array.isArray(parsed.skills) ? parsed.skills.filter((s: unknown) => typeof s === "string") : undefined,
-      companies: Array.isArray(parsed.companies) ? parsed.companies.filter((c: unknown) => typeof c === "string") : undefined,
-      experienceYears: parsed.experienceYears != null ? String(parsed.experienceYears) : undefined,
+      companies: Array.isArray(parsed.companies)
+        ? parsed.companies
+            .map((c: unknown) => {
+              if (typeof c === "string") return { name: c, years: "" };
+              if (c && typeof c === "object") {
+                const obj = c as Record<string, unknown>;
+                return { name: String(obj.name ?? ""), years: obj.years != null ? String(obj.years) : "" };
+              }
+              return null;
+            })
+            .filter((c: { name: string; years: string } | null): c is { name: string; years: string } => c !== null && c.name !== "")
+        : undefined,
       githubUrl: typeof parsed.githubUrl === "string" ? parsed.githubUrl : undefined,
     };
 

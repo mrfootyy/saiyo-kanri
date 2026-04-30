@@ -13,6 +13,11 @@ export type CandidateStatus =
   | "不採用"
   | "辞退";
 
+export type CompanyRecord = {
+  name: string;
+  years: string;
+};
+
 export type Candidate = {
   id: string;
   name: string;
@@ -31,8 +36,8 @@ export type Candidate = {
   portfolioUrl?: string;
   portfolioFile?: DocumentFile;
   skills?: string[];
-  companies?: string[];
-  experienceYears?: string;
+  companies?: CompanyRecord[];
+
   githubUrl?: string;
   interviewRecords: InterviewRecord[];
 };

@@ -22,7 +22,8 @@ export default function DashboardView({ candidates, slackNotifications, emailHis
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
     .slice(0, 5);
 
-  const tasks = getAllTasks(candidates, interviewStages, emailHistories);
+  const allTasks = getAllTasks(candidates, interviewStages, emailHistories);
+  const tasks = allTasks.slice(0, 5);
 
   return (
     <div className="space-y-6 p-6">
@@ -44,7 +45,7 @@ export default function DashboardView({ candidates, slackNotifications, emailHis
                 </svg>
               </div>
               <h2 className="text-sm font-bold text-orange-900">対応が必要なタスク</h2>
-              <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">{tasks.length}</span>
+              <span className="rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">{allTasks.length}</span>
             </div>
             <Link href="/recruitment/candidates" className="text-xs font-semibold text-orange-700 hover:text-orange-900">
               一覧で見る →

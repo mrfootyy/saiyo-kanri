@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRecruitment } from "../context";
-import { Candidate } from "../types";
+import { Candidate, DocumentFile } from "../types";
+import { extractFromFile, isExtractError } from "../extractFromFile";
 import { POSITION_OPTIONS } from "../constants";
+import DocumentUpload from "./DocumentUpload";
 
 type Props = {
   onClose: () => void;
@@ -13,16 +15,58 @@ export default function AddCandidateModal({ onClose }: Props) {
   const { addCandidate } = useRecruitment();
 
   const [name, setName] = useState("");
-  const [nameKana, setNameKana] = useState("");
   const [position, setPosition] = useState<string>(POSITION_OPTIONS[0]);
   const [customPosition, setCustomPosition] = useState("");
+  const [nameKana, setNameKana] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [age, setAge] = useState("");
-  const [companies, setCompanies] = useState("");
-  const [experienceYears, setExperienceYears] = useState("");
-  const [memo, setMemo] = useState("");
+  const [resumeFile, setResumeFile] = useState<DocumentFile | undefined>();
+  const [cvFile, setCvFile] = useState<DocumentFile | undefined>();
+  const [extracting, setExtracting] = useState(false);
+  const [extractSuccess, setExtractSuccess] = useState(false);
+  const [extractError, setExtractError] = useState("");
   const [error, setError] = useState("");
+
+  const [extractedPhone, setExtractedPhone] = useState("");
+  const [extractedAge, setExtractedAge] = useState("");
+  const [extractedSkills, setExtractedSkills] = useState<string[]>([]);
+  const [extractedCompanies, setExtractedCompanies] = useState<{ name: string; years: string }[]>([]);
+  const [extractedGithubUrl, setExtractedGithubUrl] = useState("");
+
+  async function handleFileUpload(
+    file: DocumentFile | undefined,
+    setter: (f: DocumentFile | undefined) => void
+  ) {
+    setter(file);
+    if (!file) return;
+
+    setExtracting(true);
+    setExtractError("");
+    setExtractSuccess(false);
+
+    const result = await extractFromFile(file.dataUrl, file.type);
+
+    setExtracting(false);
+
+    if (isExtractError(result)) {
+      setExtractError(result.message);
+      return;
+    }
+
+    if (result.email && !email) setEmail(result.email);
+    if (result.phone && !extractedPhone) setExtractedPhone(result.phone);
+    if (result.age && !extractedAge) setExtractedAge(result.age);
+    if (result.skills?.length) setExtractedSkills((prev) => [...new Set([...prev, ...result.skills!])]);
+    if (result.companies?.length) {
+      setExtractedCompanies((prev) => {
+        const existing = new Set(prev.map((c) => c.name));
+        const added = result.companies!.filter((c) => !existing.has(c.name));
+        return [...prev, ...added];
+      });
+    }
+    if (result.githubUrl && !extractedGithubUrl) setExtractedGithubUrl(result.githubUrl);
+
+    setExtractSuccess(true);
+  }
 
   function handleSubmit() {
     if (!name.trim()) {
@@ -30,23 +74,25 @@ export default function AddCandidateModal({ onClose }: Props) {
       return;
     }
     const today = new Date().toISOString().slice(0, 10);
-    const finalPosition = position === "その他" ? customPosition.trim() || "その他" : position;
 
     const newCandidate: Candidate = {
-      id: `c_${Date.now()}`,
+      id: crypto.randomUUID(),
       name: name.trim(),
       nameKana: nameKana.trim(),
-      position: finalPosition,
+      position: position === "その他" ? customPosition.trim() || "その他" : position,
       status: "応募受付",
       appliedAt: today,
       email: email.trim(),
-      phone: phone.trim(),
-      age: age.trim(),
-      companies: companies.split(",").map((v) => v.trim()).filter(Boolean),
-      experienceYears: experienceYears.trim(),
+      phone: extractedPhone,
+      age: extractedAge,
+      companies: extractedCompanies,
+      skills: extractedSkills.length ? extractedSkills : undefined,
+      githubUrl: extractedGithubUrl || undefined,
       interviewers: [],
-      memo: memo.trim(),
+      memo: "",
       updatedAt: today,
+      resumeFile,
+      cvFile,
       interviewRecords: [],
     };
 
@@ -56,12 +102,12 @@ export default function AddCandidateModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
         {/* ヘッダー */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
           <div>
             <h2 className="text-xl font-bold text-gray-900">応募者を登録</h2>
-            <p className="mt-0.5 text-sm text-gray-500">新しい応募者の基本情報を入力してください</p>
+            <p className="mt-0.5 text-sm text-gray-500">書類をアップロードするとAIが情報を自動入力します</p>
           </div>
           <button
             onClick={onClose}
@@ -76,15 +122,15 @@ export default function AddCandidateModal({ onClose }: Props) {
         {/* フォーム */}
         <div className="space-y-5 px-6 py-5">
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm font-medium text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {error}
             </div>
           )}
 
           {/* 氏名 */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">
-              氏名 <span className="text-red-600">*</span>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">
+              氏名 <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -94,18 +140,23 @@ export default function AddCandidateModal({ onClose }: Props) {
               autoFocus
               className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
+          </div>
+
+          {/* ふりがな */}
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">ふりがな</label>
             <input
               type="text"
               value={nameKana}
               onChange={(e) => setNameKana(e.target.value)}
-              placeholder="ふりがな（例：やまだ たろう）"
-              className="mt-1.5 w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              placeholder="例：やまだ たろう"
+              className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
           {/* 志望職種 */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">志望職種</label>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">志望職種</label>
             <select
               value={position}
               onChange={(e) => setPosition(e.target.value)}
@@ -126,86 +177,66 @@ export default function AddCandidateModal({ onClose }: Props) {
             )}
           </div>
 
-          {/* メール・電話 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">メールアドレス</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@email.com"
-                className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">電話番号</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="090-0000-0000"
-                className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+          {/* メールアドレス */}
+          <div>
+            <label className="mb-1.5 block text-sm font-bold text-gray-700">メールアドレス</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="example@email.com"
+              className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
           </div>
 
-          {/* 年齢 */}
-          <div className="w-1/3">
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">年齢</label>
-            <div className="relative">
-              <input
-                type="number"
-                min="15"
-                max="80"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="28"
-                className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 pr-10 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">歳</span>
-            </div>
-          </div>
-
-          {/* 経験情報 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">経験企業</label>
-              <input
-                type="text"
-                value={companies}
-                onChange={(e) => setCompanies(e.target.value)}
-                placeholder="株式会社サンプル, Example Inc."
-                className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">経験年数</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={experienceYears}
-                  onChange={(e) => setExperienceYears(e.target.value)}
-                  placeholder="5"
-                  className="w-full rounded-xl border-2 border-gray-300 px-4 py-2.5 pr-10 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          {/* 書類アップロード（2カラム） */}
+          <div>
+            <label className="mb-2 block text-sm font-bold text-gray-700">書類</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-gray-500">履歴書</p>
+                <DocumentUpload
+                  label=""
+                  file={resumeFile}
+                  onChange={(f) => handleFileUpload(f, setResumeFile)}
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">年</span>
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-semibold text-gray-500">職務経歴書</p>
+                <DocumentUpload
+                  label=""
+                  file={cvFile}
+                  onChange={(f) => handleFileUpload(f, setCvFile)}
+                />
               </div>
             </div>
-          </div>
 
-          {/* メモ */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">メモ</label>
-            <textarea
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              rows={3}
-              placeholder="応募経路・特記事項など"
-              className="w-full resize-none rounded-xl border-2 border-gray-300 px-4 py-2.5 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+            {/* AI読み取り状態 */}
+            {extracting && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                AIで解析中...
+              </div>
+            )}
+            {!extracting && extractSuccess && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-xs text-green-700">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                AI読み取り完了。情報を自動入力しました。
+              </div>
+            )}
+            {!extracting && extractError && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {extractError}
+              </div>
+            )}
           </div>
         </div>
 
@@ -219,7 +250,8 @@ export default function AddCandidateModal({ onClose }: Props) {
           </button>
           <button
             onClick={handleSubmit}
-            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 transition-colors"
+            disabled={extracting}
+            className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 disabled:opacity-60 transition-colors"
           >
             登録する
           </button>

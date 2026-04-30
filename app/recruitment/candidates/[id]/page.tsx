@@ -30,14 +30,7 @@ const RESULT_COLORS: Record<InterviewResult, string> = {
   不採用: "bg-red-100 text-red-600",
 };
 
-type Tab = "基本情報" | "書類" | "面接記録" | "履歴";
-
-type AiSummary = {
-  strengths: string[];
-  concerns: string[];
-  nextQuestions: string[];
-  overallComment: string;
-};
+type Tab = "基本情報" | "書類" | "履歴";
 
 function StarRating({
   value,
@@ -60,40 +53,6 @@ function StarRating({
           ★
         </button>
       ))}
-    </div>
-  );
-}
-
-function AiSummaryList({
-  title,
-  items,
-  color,
-}: {
-  title: string;
-  items: string[];
-  color: "green" | "amber" | "blue";
-}) {
-  const colorClass = {
-    green: "text-green-600",
-    amber: "text-amber-600",
-    blue: "text-blue-600",
-  }[color];
-
-  return (
-    <div className="rounded-xl border border-violet-100 bg-white p-4">
-      <p className={`text-xs font-bold uppercase tracking-wide ${colorClass}`}>{title}</p>
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-gray-400">項目がありません。</p>
-      ) : (
-        <ul className="mt-2 space-y-1.5">
-          {items.map((item) => (
-            <li key={item} className="flex gap-2 text-sm leading-relaxed text-gray-700">
-              <span className={`mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full ${color === "green" ? "bg-green-500" : color === "amber" ? "bg-amber-500" : "bg-blue-500"}`} />
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -139,9 +98,6 @@ function CandidateDetail({
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("基本情報");
   const [saved, setSaved] = useState(false);
-  const [aiSummary, setAiSummary] = useState<AiSummary | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
 
   // 基本情報
   const [name, setName] = useState(candidate.name);
@@ -151,8 +107,7 @@ function CandidateDetail({
   const [phone, setPhone] = useState(candidate.phone);
   const [age, setAge] = useState(candidate.age);
   const [skills, setSkills] = useState<string[]>(candidate.skills ?? []);
-  const [companies, setCompanies] = useState<string[]>(candidate.companies ?? []);
-  const [experienceYears, setExperienceYears] = useState(candidate.experienceYears ?? "");
+  const [companies, setCompanies] = useState<{ name: string; years: string }[]>(candidate.companies ?? []);
   const [status, setStatus] = useState<CandidateStatus>(candidate.status);
   const [interviewers, setInterviewers] = useState<string[]>(candidate.interviewers);
   const [memo, setMemo] = useState(candidate.memo);
@@ -166,18 +121,7 @@ function CandidateDetail({
   const [extracted, setExtracted] = useState<ExtractedInfo | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
 
-  // 面接記録
-  const [records, setRecords] = useState<InterviewRecord[]>(candidate.interviewRecords);
-  const [editingRecord, setEditingRecord] = useState<InterviewRecord | null>(null);
-  const [isAddingRecord, setIsAddingRecord] = useState(false);
-  const [recordForm, setRecordForm] = useState<Omit<InterviewRecord, "id">>({
-    stageName: "",
-    date: new Date().toISOString().slice(0, 10),
-    interviewers: [],
-    notes: "",
-    rating: null,
-    result: null,
-  });
+  const records = candidate.interviewRecords;
 
   const candidateSlacks = allSlack.filter((s) => s.candidateId === candidate.id);
 
@@ -205,7 +149,6 @@ function CandidateDetail({
       portfolioFile,
       skills,
       companies,
-      experienceYears,
       interviewRecords: records,
       ...overrides,
     };
@@ -247,18 +190,23 @@ function CandidateDetail({
 
   function applyExtractedToForm(info: ExtractedInfo): Partial<Candidate> {
     const nextSkills = info.skills?.length ? [...new Set([...skills, ...info.skills])] : skills;
-    const nextCompanies = info.companies?.length ? [...new Set([...companies, ...info.companies])] : companies;
+    const incomingCompanies: { name: string; years: string }[] = info.companies?.map((c) =>
+      typeof c === "string" ? { name: c, years: "" } : c
+    ) ?? [];
+    const existingNames = new Set(companies.map((c) => c.name));
+    const nextCompanies = [
+      ...companies,
+      ...incomingCompanies.filter((c) => !existingNames.has(c.name)),
+    ];
     const nextEmail = info.email ?? email;
     const nextPhone = info.phone ?? phone;
     const nextAge = info.age ?? age;
-    const nextExperienceYears = info.experienceYears ?? experienceYears;
 
     if (info.email) setEmail(info.email);
     if (info.phone) setPhone(info.phone);
     if (info.age) setAge(info.age);
     if (info.skills?.length) setSkills(nextSkills);
-    if (info.companies?.length) setCompanies(nextCompanies);
-    if (info.experienceYears) setExperienceYears(info.experienceYears);
+    if (incomingCompanies.length) setCompanies(nextCompanies);
 
     return {
       email: nextEmail,
@@ -266,7 +214,6 @@ function CandidateDetail({
       age: nextAge,
       skills: nextSkills,
       companies: nextCompanies,
-      experienceYears: nextExperienceYears,
     };
   }
 
@@ -306,92 +253,12 @@ function CandidateDetail({
     setTimeout(() => setSaved(false), 2000);
   }
 
-  async function generateAiSummary() {
-    setAiLoading(true);
-    setAiError("");
-
-    try {
-      const response = await fetch("/api/ai/candidate-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          position,
-          status: syncedStatus,
-          appliedAt: candidate.appliedAt,
-          age,
-          skills,
-          companies,
-          experienceYears,
-          portfolioUrl,
-          memo,
-          interviewers,
-          interviewRecords: records,
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? "AI要約の生成に失敗しました。");
-      }
-
-      setAiSummary(data.summary);
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : "AI要約の生成に失敗しました。");
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  // 面接記録フォーム
-  function openAddRecord() {
-    setRecordForm({
-      stageName: interviewStages[0]?.name ?? "",
-      date: new Date().toISOString().slice(0, 10),
-      interviewers: [],
-      notes: "",
-      rating: null,
-      result: null,
-    });
-    setEditingRecord(null);
-    setIsAddingRecord(true);
-  }
-
-  function openEditRecord(record: InterviewRecord) {
-    setRecordForm({
-      stageName: record.stageName,
-      date: record.date,
-      interviewers: record.interviewers,
-      notes: record.notes,
-      rating: record.rating,
-      result: record.result,
-    });
-    setEditingRecord(record);
-    setIsAddingRecord(false);
-  }
-
-  function saveRecord() {
-    if (!recordForm.stageName) return;
-    if (editingRecord) {
-      setRecords((prev) => prev.map((r) => r.id === editingRecord.id ? { ...editingRecord, ...recordForm } : r));
-    } else {
-      setRecords((prev) => [...prev, { id: `ir_${Date.now()}`, ...recordForm }]);
-    }
-    setIsAddingRecord(false);
-    setEditingRecord(null);
-  }
-
-  function deleteRecord(id: string) {
-    setRecords((prev) => prev.filter((r) => r.id !== id));
-  }
-
   const hasExtracted = extracted && (
     extracted.email ||
     extracted.phone ||
     extracted.age ||
     extracted.skills?.length ||
-    extracted.companies?.length ||
-    extracted.experienceYears
+    extracted.companies?.length
   );
   const syncedStatus = deriveCandidateStatusFromFlow(records, interviewStages, status);
 
@@ -418,13 +285,6 @@ function CandidateDetail({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={generateAiSummary}
-              disabled={aiLoading}
-              className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-bold text-violet-700 shadow-sm transition-colors hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {aiLoading ? "AI要約中..." : "AI要約"}
-            </button>
-            <button
               onClick={handleSave}
               className={`rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all ${
                 saved ? "bg-green-500 shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"
@@ -439,29 +299,9 @@ function CandidateDetail({
       {/* 選考フロー */}
       <StepFlowBar stages={interviewStages} records={records} manualStatus={syncedStatus} candidateId={candidate.id} />
 
-      {(aiSummary || aiError) && (
-        <div className="border-b border-violet-100 bg-violet-50/70 px-6 py-4">
-          {aiError ? (
-            <div className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-600">
-              {aiError}
-            </div>
-          ) : aiSummary ? (
-            <div className="grid gap-3 lg:grid-cols-4">
-              <div className="rounded-xl border border-violet-100 bg-white p-4 lg:col-span-1">
-                <p className="text-xs font-bold uppercase tracking-wide text-violet-500">総評</p>
-                <p className="mt-2 text-sm leading-relaxed text-gray-700">{aiSummary.overallComment}</p>
-              </div>
-              <AiSummaryList title="強み" items={aiSummary.strengths} color="green" />
-              <AiSummaryList title="懸念点" items={aiSummary.concerns} color="amber" />
-              <AiSummaryList title="次に聞くこと" items={aiSummary.nextQuestions} color="blue" />
-            </div>
-          ) : null}
-        </div>
-      )}
-
       {/* タブ */}
       <div className="flex border-b border-gray-100 bg-white px-6">
-        {(["基本情報", "書類", "面接記録", "履歴"] as Tab[]).map((tab) => (
+        {(["基本情報", "書類", "履歴"] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -472,11 +312,6 @@ function CandidateDetail({
             }`}
           >
             {tab}
-            {tab === "面接記録" && records.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
-                {records.length}
-              </span>
-            )}
             {tab === "書類" && extracting && (
               <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
             )}
@@ -563,32 +398,60 @@ function CandidateDetail({
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">経験企業</label>
-                <input
-                  type="text"
-                  value={companies.join(", ")}
-                  onChange={(e) => setCompanies(e.target.value.split(",").map((v) => v.trim()).filter(Boolean))}
-                  placeholder="株式会社サンプル, Example Inc."
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">経験年数</label>
-              <div className="relative max-w-xs">
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={experienceYears}
-                  onChange={(e) => setExperienceYears(e.target.value)}
-                  placeholder="5"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-8 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">年</span>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-gray-400">経験企業・在籍年数</label>
+                <button
+                  type="button"
+                  onClick={() => setCompanies((prev) => [...prev, { name: "", years: "" }])}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  追加
+                </button>
               </div>
+              {companies.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2">企業が登録されていません。</p>
+              ) : (
+                <div className="space-y-2">
+                  {companies.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={c.name}
+                        onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, name: e.target.value } : item))}
+                        placeholder="株式会社サンプル"
+                        className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <div className="relative w-24 flex-shrink-0">
+                        <input
+                          type="number"
+                          min="0"
+                          max="50"
+                          value={c.years}
+                          onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, years: e.target.value } : item))}
+                          placeholder="3"
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-7 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">年</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCompanies((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -604,14 +467,14 @@ function CandidateDetail({
         {activeTab === "書類" && (
           <div className="space-y-6">
             <DocumentUpload
-              label="職務経歴書（アップロード後にスキル・企業・経験年数を自動読み取り）"
+              label="履歴書（アップロード後にメール・電話・年齢を自動読み取り）"
               file={resumeFile}
               onChange={handleResumeUpload}
             />
 
             <div className="space-y-2">
               <DocumentUpload
-                label="履歴書（アップロード後にメール・電話・年齢を自動読み取り）"
+                label="職務経歴書（アップロード後にスキル・企業・経験年数を自動読み取り）"
                 file={cvFile}
                 onChange={handleCvUpload}
               />
@@ -642,8 +505,13 @@ function CandidateDetail({
                         {extracted.phone && <p>電話番号: <span className="font-medium">{extracted.phone}</span></p>}
                         {extracted.age && <p>年齢: <span className="font-medium">{extracted.age}歳</span></p>}
                         {!!extracted.skills?.length && <p>スキル: <span className="font-medium">{extracted.skills.join(", ")}</span></p>}
-                        {!!extracted.companies?.length && <p>経験企業: <span className="font-medium">{extracted.companies.join(", ")}</span></p>}
-                        {extracted.experienceYears && <p>経験年数: <span className="font-medium">{extracted.experienceYears}年</span></p>}
+                        {!!extracted.companies?.length && (
+                          <p>経験企業: <span className="font-medium">
+                            {extracted.companies.map((c) =>
+                              typeof c === "string" ? c : c.years ? `${c.name}（${c.years}年）` : c.name
+                            ).join(", ")}
+                          </span></p>
+                        )}
                       </div>
                       <button onClick={applyExtracted}
                         className="mt-3 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
@@ -680,175 +548,6 @@ function CandidateDetail({
                 <label className="block text-xs text-gray-400 mb-1">ファイル（PDF・画像）</label>
                 <DocumentUpload label="" file={portfolioFile} onChange={setPortfolioFile} />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── 面接記録 ── */}
-        {activeTab === "面接記録" && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">面接ごとの評価・コメントを記録します。</p>
-              <button onClick={openAddRecord}
-                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                記録を追加
-              </button>
-            </div>
-
-            {/* 追加・編集フォーム */}
-            {(isAddingRecord || editingRecord) && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-                <p className="text-sm font-semibold text-blue-800">{editingRecord ? "記録を編集" : "新しい面接記録"}</p>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">ステージ</label>
-                    <select value={recordForm.stageName}
-                      onChange={(e) => setRecordForm((f) => ({ ...f, stageName: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none">
-                      {interviewStages.length > 0
-                        ? interviewStages.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)
-                        : STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)
-                      }
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">実施日</label>
-                    <input type="date" value={recordForm.date}
-                      onChange={(e) => setRecordForm((f) => ({ ...f, date: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    面接官
-                    {recordForm.interviewers.length > 0 && (
-                      <span className="ml-1 font-normal text-gray-400">({recordForm.interviewers.length}名)</span>
-                    )}
-                  </label>
-                  <div className="grid grid-cols-2 gap-1 rounded-lg border border-gray-200 bg-white p-1.5">
-                    {interviewerOptions.map((opt) => {
-                      const checked = recordForm.interviewers.includes(opt);
-                      return (
-                        <label key={opt}
-                          className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs transition-colors ${
-                            checked ? "bg-blue-50 text-blue-700" : "text-gray-600 hover:bg-gray-50"
-                          }`}>
-                          <input type="checkbox" checked={checked} className="h-3 w-3 accent-blue-600"
-                            onChange={() => setRecordForm((f) => ({
-                              ...f,
-                              interviewers: checked
-                                ? f.interviewers.filter((i) => i !== opt)
-                                : [...f.interviewers, opt],
-                            }))} />
-                          {opt}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">評価メモ</label>
-                  <textarea value={recordForm.notes}
-                    onChange={(e) => setRecordForm((f) => ({ ...f, notes: e.target.value }))}
-                    rows={4} placeholder="面接の印象・評価・気になった点など"
-                    className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-400 focus:outline-none" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1.5">総合評価</label>
-                    <StarRating
-                      value={recordForm.rating}
-                      onChange={(v) => setRecordForm((f) => ({ ...f, rating: v }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">判定</label>
-                    <select value={recordForm.result ?? ""}
-                      onChange={(e) => setRecordForm((f) => ({ ...f, result: (e.target.value || null) as InterviewResult | null }))}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none">
-                      <option value="">未判定</option>
-                      {RESULT_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-1">
-                  <button onClick={() => { setIsAddingRecord(false); setEditingRecord(null); }}
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-white">
-                    キャンセル
-                  </button>
-                  <button onClick={saveRecord} disabled={!recordForm.stageName}
-                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-                    保存
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 記録一覧 */}
-            {records.length === 0 && !isAddingRecord && (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white py-12 text-gray-400">
-                <svg className="mb-3 h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-sm">面接記録がありません。</p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {[...records].sort((a, b) => b.date.localeCompare(a.date)).map((record) => (
-                <div key={record.id} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="text-sm font-semibold text-gray-800">{record.stageName}</span>
-                        <span className="text-xs text-gray-400">{record.date}</span>
-                        {record.result && (
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${RESULT_COLORS[record.result]}`}>
-                            {record.result}
-                          </span>
-                        )}
-                      </div>
-
-                      {record.interviewers.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {record.interviewers.map((i) => (
-                            <span key={i} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{i}</span>
-                          ))}
-                        </div>
-                      )}
-
-                      {record.rating && (
-                        <div className="mb-2">
-                          <StarRating value={record.rating} />
-                        </div>
-                      )}
-
-                      {record.notes && (
-                        <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{record.notes}</p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => openEditRecord(record)}
-                        className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50">
-                        編集
-                      </button>
-                      <button onClick={() => deleteRecord(record.id)}
-                        className="rounded-lg border border-red-100 px-2.5 py-1 text-xs text-red-500 hover:bg-red-50">
-                        削除
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         )}

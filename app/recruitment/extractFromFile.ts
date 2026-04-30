@@ -1,10 +1,11 @@
+export type ExtractedCompany = { name: string; years: string };
+
 export type ExtractedInfo = {
   email?: string;
   phone?: string;
   age?: string;
   skills?: string[];
-  companies?: string[];
-  experienceYears?: string;
+  companies?: ExtractedCompany[];
   githubUrl?: string;
 };
 
