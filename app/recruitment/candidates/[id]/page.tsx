@@ -9,17 +9,17 @@ import {
   CandidateStatus,
   DocumentFile,
   InterviewRecord,
-  InterviewRating,
   InterviewResult,
   SlackChannelConfig,
   SlackNotification,
 } from "../../types";
-import { INTERVIEWER_OPTIONS, POSITION_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from "../../constants";
+import { INTERVIEWER_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from "../../constants";
 import { ExtractedInfo, extractFromFile, isExtractError } from "../../extractFromFile";
 import { deriveCandidateStatusFromFlow, getStageIndexForStatus, getStatusForStageName, isTerminalStatus } from "../../statusUtils";
 import StatusBadge from "../../components/StatusBadge";
 import DocumentUpload from "../../components/DocumentUpload";
 import StepFlowBar from "../../components/StepFlowBar";
+import PositionSelect from "../../components/PositionSelect";
 
 const STATUS_OPTIONS: CandidateStatus[] = ["応募受付", "内定", "不採用", "辞退"];
 
@@ -32,33 +32,6 @@ const RESULT_COLORS: Record<InterviewResult, string> = {
 };
 
 type Tab = "基本情報" | "書類" | "評価" | "質問" | "履歴";
-
-function StarRating({
-  value,
-  onChange,
-}: {
-  value: InterviewRating | null;
-  onChange?: (v: InterviewRating) => void;
-}) {
-  return (
-    <div className="flex gap-0.5" role="group" aria-label="評価">
-      {([1, 2, 3, 4, 5] as InterviewRating[]).map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange?.(n)}
-          aria-label={`${n}点`}
-          aria-pressed={value !== null && n <= value}
-          className={`text-lg leading-none transition-colors ${
-            value !== null && n <= value ? "text-blue-500" : "text-slate-200"
-          } ${onChange ? "cursor-pointer hover:text-blue-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400" : "cursor-default"}`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -447,22 +420,13 @@ function CandidateDetail({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>志望職種</label>
-                <div className="relative">
-                  <select
-                    value={POSITION_OPTIONS.includes(position as any) ? position : "その他"}
-                    onChange={(e) => setPosition(e.target.value)}
-                    className={selectCls}
-                  >
-                    {POSITION_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <SelectArrow />
-                </div>
-                {!POSITION_OPTIONS.includes(position as any) && (
-                  <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="職種を入力" className={`mt-1.5 ${inputCls}`} />
-                )}
-              </div>
+              <PositionSelect
+                value={position}
+                onChange={setPosition}
+                selectClassName={selectCls}
+                inputClassName={inputCls}
+                labelClassName={labelCls}
+              />
               <div>
                 <label className={labelCls}>ステータス</label>
                 <div className="relative">
@@ -489,7 +453,7 @@ function CandidateDetail({
 
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <label className={labelCls}>経験企業・在籍年数</label>
+                <label className={labelCls}>経験企業・在籍期間</label>
                 <button
                   type="button"
                   onClick={() => setCompanies((prev) => [...prev, { name: "", years: "" }])}
@@ -514,17 +478,15 @@ function CandidateDetail({
                         placeholder="株式会社サンプル"
                         className={`flex-1 ${inputCls}`}
                       />
-                      <div className="relative w-24 flex-shrink-0">
+                      <div className="w-36 flex-shrink-0">
                         <input
-                          type="number"
-                          min="0"
-                          max="50"
+                          type="text"
                           value={c.years}
                           onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, years: e.target.value } : item))}
-                          placeholder="3"
+                          placeholder="例：2年6ヶ月"
+                          aria-label={`${c.name || "企業"}の在籍期間`}
                           className={inputCls}
                         />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">年</span>
                       </div>
                       <button
                         type="button"
@@ -571,7 +533,7 @@ function CandidateDetail({
 
             <div className="space-y-2">
               <DocumentUpload
-                label="職務経歴書（アップロード後にスキル・企業・経験年数を自動読み取り）"
+                label="職務経歴書（アップロード後にスキル・企業・在籍期間を自動読み取り）"
                 file={cvFile}
                 onChange={handleCvUpload}
               />
@@ -605,7 +567,7 @@ function CandidateDetail({
                         {!!extracted.companies?.length && (
                           <p>経験企業: <span className="font-medium">
                             {extracted.companies.map((c) =>
-                              typeof c === "string" ? c : c.years ? `${c.name}（${c.years}年）` : c.name
+                              typeof c === "string" ? c : c.years ? `${c.name}（${c.years}）` : c.name
                             ).join(", ")}
                           </span></p>
                         )}
@@ -675,11 +637,6 @@ function CandidateDetail({
                     <div className="flex items-center gap-2">
                       {r.result && (
                         <span className={`rounded-md px-2.5 py-0.5 text-xs font-semibold ${RESULT_COLORS[r.result]}`}>{r.result}</span>
-                      )}
-                      {r.rating && (
-                        <span className="text-sm text-blue-500" aria-label={`評価${r.rating}点`}>
-                          {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
-                        </span>
                       )}
                     </div>
                   </div>

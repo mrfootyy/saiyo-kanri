@@ -24,10 +24,9 @@ const STATUS_ORDER: Record<CandidateStatus, number> = {
 const BULK_STATUS_OPTIONS: CandidateStatus[] = ["書類選考", "一次面接", "最終面接", "内定", "不採用", "辞退"];
 
 export default function CandidatesPage() {
-  const { candidates, bulkUpdateStatus, archiveCandidate, unarchiveCandidate, deleteCandidate, duplicateCandidate } = useRecruitment();
+  const { candidates, bulkUpdateStatus, deleteCandidate } = useRecruitment();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue | "選考中">("選考中");
-  const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("appliedAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
@@ -46,7 +45,6 @@ export default function CandidatesPage() {
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
     const list = candidates.filter((c) => {
-      if (showArchived ? !c.archivedAt : c.archivedAt) return false;
       const matchesSearch =
         q === "" ||
         c.name.toLowerCase().includes(q) ||
@@ -74,7 +72,7 @@ export default function CandidatesPage() {
       }
       return sortOrder === "asc" ? cmp : -cmp;
     });
-  }, [candidates, searchQuery, statusFilter, sortKey, sortOrder, showArchived]);
+  }, [candidates, searchQuery, statusFilter, sortKey, sortOrder]);
 
   const allFilteredIds = filtered.map((c) => c.id);
   const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.has(id));
@@ -100,18 +98,11 @@ export default function CandidatesPage() {
     setSelectedIds(new Set());
   }
 
-  function handleBulkArchive() {
-    [...selectedIds].forEach((id) => archiveCandidate(id));
-    setSelectedIds(new Set());
-  }
-
   function handleBulkDelete() {
     if (!window.confirm(`選択した${selectedIds.size}件を削除します。この操作は元に戻せません。`)) return;
     [...selectedIds].forEach((id) => deleteCandidate(id));
     setSelectedIds(new Set());
   }
-
-  const archivedCount = candidates.filter((c) => !!c.archivedAt).length;
 
   return (
     <div className="space-y-5 p-6">
@@ -123,21 +114,6 @@ export default function CandidatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {archivedCount > 0 && (
-            <button
-              onClick={() => { setShowArchived((v) => !v); setSelectedIds(new Set()); }}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1 ${
-                showArchived
-                  ? "border-slate-400 bg-slate-100 text-slate-700"
-                  : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v4m4-4v4" />
-              </svg>
-              {showArchived ? "通常表示" : `アーカイブ (${archivedCount})`}
-            </button>
-          )}
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
@@ -189,12 +165,6 @@ export default function CandidatesPage() {
               ステータス変更
             </button>
             <button
-              onClick={handleBulkArchive}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-            >
-              アーカイブ
-            </button>
-            <button
               onClick={handleBulkDelete}
               className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
             >
@@ -214,7 +184,7 @@ export default function CandidatesPage() {
         <div className="border-b border-slate-100 px-5 py-4">
           <div className="flex items-baseline gap-2">
             <h2 className="text-sm font-semibold text-slate-900">
-              {showArchived ? "アーカイブ済み応募者" : "応募者一覧"}
+              応募者一覧
             </h2>
             <span className="text-xs font-medium text-slate-400">{filtered.length}件</span>
           </div>
@@ -228,11 +198,7 @@ export default function CandidatesPage() {
           onToggleSelect={toggleSelect}
           onToggleSelectAll={toggleSelectAll}
           allSelected={allSelected}
-          onDuplicate={duplicateCandidate}
-          onArchive={showArchived ? undefined : archiveCandidate}
-          onUnarchive={showArchived ? unarchiveCandidate : undefined}
           onDelete={deleteCandidate}
-          showArchived={showArchived}
         />
       </div>
 

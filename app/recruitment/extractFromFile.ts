@@ -3,6 +3,8 @@ import { authFetch } from "../../lib/authFetch";
 export type ExtractedCompany = { name: string; years: string };
 
 export type ExtractedInfo = {
+  name?: string;
+  nameKana?: string;
   email?: string;
   phone?: string;
   age?: string;

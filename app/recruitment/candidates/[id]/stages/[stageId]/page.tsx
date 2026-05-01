@@ -10,7 +10,6 @@ import {
   InterviewAudioSummary,
   InterviewFormat,
   InterviewQuestion,
-  InterviewRating,
   InterviewRecord,
   InterviewResult,
   InterviewStage,
@@ -45,33 +44,6 @@ const GRADE_IDLE = "bg-white border-slate-200 text-slate-500 hover:border-slate-
 
 const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
 const textareaCls = "w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
-
-function StarIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg className={`h-5 w-5 transition-colors ${filled ? "text-blue-500" : "text-slate-200"}`} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-    </svg>
-  );
-}
-
-function StarRating({ value, onChange }: { value: InterviewRating | null; onChange?: (v: InterviewRating) => void }) {
-  return (
-    <div className="flex gap-0.5" role="group" aria-label="総合評価">
-      {([1, 2, 3, 4, 5] as InterviewRating[]).map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange?.(n)}
-          aria-label={`${n}点`}
-          aria-pressed={value !== null && n <= value}
-          className={`rounded p-0.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 ${onChange ? "cursor-pointer hover:scale-110" : "cursor-default"} transition-transform`}
-        >
-          <StarIcon filled={value !== null && n <= value} />
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function ResultIcon({ result }: { result: InterviewResult }) {
   if (result === "通過") return (
@@ -314,7 +286,6 @@ function StageForm({
   const [evaluations, setEvaluations] = useState<EvaluationItem[]>(makeInitialEvaluations);
   const [decisionReason, setDecisionReason] = useState(existing?.decisionReason ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [rating, setRating] = useState<InterviewRating | null>(existing?.rating ?? null);
   const [audioSummary, setAudioSummary] = useState<InterviewAudioSummary | null>(existing?.audioSummary ?? null);
   const [recordingState, setRecordingState] = useState<"idle" | "recording" | "stopped">("idle");
   const [recordingSeconds, setRecordingSeconds] = useState(existing?.audioSummary?.durationSeconds ?? 0);
@@ -334,10 +305,9 @@ function StageForm({
     if (evaluations.every((e) => e.grade !== null)) n++;
     if (evaluations.every((e) => e.episode.trim())) n++;
     if (decisionReason.trim()) n++;
-    if (isDocumentStage || rating !== null) n++;
     return n;
-  }, [decisionReason, evaluations, isDocumentStage, rating]);
-  const totalRequired = 4;
+  }, [decisionReason, evaluations]);
+  const totalRequired = 3;
   const evaluationReady = completedCount === totalRequired;
   const stageQuestionItems = useMemo(() => {
     const assigned = new Set(assignedQuestionIds);
@@ -360,7 +330,7 @@ function StageForm({
       time: time.trim() || undefined,
       interviewers,
       notes,
-      rating,
+      rating: null,
       result,
       evaluations,
       decisionReason,
@@ -418,7 +388,7 @@ function StageForm({
     setSaveState("saving");
     const timer = window.setTimeout(() => persistRecord(buildRecord()), 700);
     return () => window.clearTimeout(timer);
-  }, [audioSummary, date, time, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
+  }, [audioSummary, date, time, decisionReason, evaluations, format, interviewers, notes, result, zoomUrl]);
 
   useEffect(() => {
     recordingSecondsRef.current = recordingSeconds;
@@ -684,7 +654,7 @@ function StageForm({
               <h2 className="text-sm font-semibold text-slate-900">実施概要</h2>
             </div>
             <div className="px-5 py-4">
-              <div className={`grid gap-5 ${showFormat ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+              <div className={`grid gap-5 ${showFormat ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
                 {/* 日時 */}
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-slate-500">実施日時</p>
@@ -723,17 +693,6 @@ function StageForm({
                     </div>
                   </div>
                 )}
-
-                {/* 総合評価 */}
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-slate-500">総合評価</p>
-                  <div className="flex h-9 items-center">
-                    <StarRating value={rating} onChange={setRating} />
-                  </div>
-                  {rating && (
-                    <p className="text-xs text-slate-400">{rating}点 / 5点</p>
-                  )}
-                </div>
               </div>
 
               {/* Zoom URL */}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRecruitment } from "../context";
-import { ACTIVE_STATUSES, POSITION_OPTIONS } from "../constants";
+import { ACTIVE_STATUSES, DEFAULT_POSITION_OPTION } from "../constants";
 import { Candidate, CandidateStatus, HireGoal } from "../types";
 
 const ALL_STATUSES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接", "内定", "不採用", "辞退"];
@@ -39,7 +39,7 @@ function Card({ title, action, children }: { title: string; action?: React.React
 }
 
 export default function AnalyticsPage() {
-  const { candidates, interviewers, hireGoals, setHireGoals } = useRecruitment();
+  const { candidates, interviewers, positionOptions, hireGoals, setHireGoals } = useRecruitment();
   const [editingGoals, setEditingGoals] = useState(false);
   const [goalDraft, setGoalDraft] = useState<HireGoal[]>(hireGoals);
   const [dateRange, setDateRange] = useState<DateRange>("all");
@@ -154,7 +154,7 @@ export default function AnalyticsPage() {
             { label: "今月", value: "thisMonth" },
             { label: "カスタム", value: "custom" },
           ]} />
-          <Select label="職種" value={positionFilter} onChange={setPositionFilter} options={[{ label: "すべて", value: "すべて" }, ...POSITION_OPTIONS.map((position) => ({ label: position, value: position }))]} />
+          <Select label="職種" value={positionFilter} onChange={setPositionFilter} options={[{ label: "すべて", value: "すべて" }, ...positionOptions.map((position) => ({ label: position, value: position }))]} />
           <Select label="応募ソース" value={sourceFilter} onChange={setSourceFilter} options={sourceOptions} />
           <Select label="ステータス" value={statusFilter} onChange={setStatusFilter} options={[{ label: "すべて", value: "すべて" }, ...ALL_STATUSES.map((status) => ({ label: status, value: status }))]} />
           <Select label="面接官" value={interviewerFilter} onChange={setInterviewerFilter} options={[{ label: "すべて", value: "すべて" }, ...interviewers.map((interviewer) => ({ label: interviewer, value: interviewer }))]} />
@@ -271,7 +271,7 @@ export default function AnalyticsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-xs font-semibold text-slate-700">{item.name}</p>
-                      <p className="text-xs text-slate-400">{item.total}件 / 平均{item.avgRating ?? "-"}点</p>
+                      <p className="text-xs text-slate-400">{item.total}件</p>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={item.passRate} aria-valuemin={0} aria-valuemax={100} aria-label={`通過率 ${item.passRate}%`}>
                       <div className="h-full bg-blue-500 transition-all" style={{ width: `${item.passRate}%` }} />
@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
                     <span className="text-sm font-medium text-slate-800">{stage.name}</span>
                     <span className="text-xs text-slate-400">{stage.total}件 / 通過率 {stage.passRate}%</span>
                   </div>
-                  <BarRow label="保留・未判定" valueLabel={`${stage.pending}件`} rightLabel={`平均評価 ${stage.avgRating ?? "-"}点`} pct={percent(stage.pending, stage.total)} barClassName="bg-blue-400" compact />
+                  <BarRow label="保留・未判定" valueLabel={`${stage.pending}件`} rightLabel={`通過率 ${stage.passRate}%`} pct={percent(stage.pending, stage.total)} barClassName="bg-blue-400" compact />
                 </div>
               ))}
             </div>
@@ -351,7 +351,7 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-semibold text-slate-900">採用目標</h2>
           <button
             onClick={() => {
-              setGoalDraft(hireGoals.length > 0 ? hireGoals : [{ position: POSITION_OPTIONS[0], target: 1 }]);
+              setGoalDraft(hireGoals.length > 0 ? hireGoals : [{ position: DEFAULT_POSITION_OPTION, target: 1 }]);
               setEditingGoals(!editingGoals);
             }}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
@@ -366,7 +366,7 @@ export default function AnalyticsPage() {
                 <div key={index} className="flex items-center gap-3">
                   <div className="relative flex-1">
                     <select value={goal.position} onChange={(event) => setGoalDraft((draft) => draft.map((item, idx) => idx === index ? { ...item, position: event.target.value } : item))} className="w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" aria-label={`職種 ${index + 1}`}>
-                      {POSITION_OPTIONS.map((position) => <option key={position} value={position}>{position}</option>)}
+                      {positionOptions.map((position) => <option key={position} value={position}>{position}</option>)}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
                       <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,7 +386,7 @@ export default function AnalyticsPage() {
                 </div>
               ))}
               <div className="flex gap-2 pt-1">
-                <button onClick={() => setGoalDraft((draft) => [...draft, { position: POSITION_OPTIONS[0], target: 1 }])} className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1">
+                <button onClick={() => setGoalDraft((draft) => [...draft, { position: positionOptions[0] ?? DEFAULT_POSITION_OPTION, target: 1 }])} className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1">
                   + 目標を追加
                 </button>
                 <button onClick={saveGoals} className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">
@@ -532,39 +532,37 @@ function buildPositionStats(candidates: Candidate[]) {
 }
 
 function buildInterviewerStats(candidates: Candidate[], interviewers: string[]) {
-  const stats = new Map<string, { name: string; passed: number; total: number; ratings: number[] }>();
-  for (const interviewer of interviewers) stats.set(interviewer, { name: interviewer, passed: 0, total: 0, ratings: [] });
+  const stats = new Map<string, { name: string; passed: number; total: number }>();
+  for (const interviewer of interviewers) stats.set(interviewer, { name: interviewer, passed: 0, total: 0 });
   for (const candidate of candidates) {
     for (const record of candidate.interviewRecords) {
       for (const interviewer of record.interviewers) {
-        const item = stats.get(interviewer) ?? { name: interviewer, passed: 0, total: 0, ratings: [] };
+        const item = stats.get(interviewer) ?? { name: interviewer, passed: 0, total: 0 };
         item.total++;
         if (record.result === "通過") item.passed++;
-        if (record.rating) item.ratings.push(record.rating);
         stats.set(interviewer, item);
       }
     }
   }
   return Array.from(stats.values())
     .filter((item) => item.total > 0)
-    .map((item) => ({ ...item, passRate: percent(item.passed, item.total), avgRating: average(item.ratings) }))
+    .map((item) => ({ ...item, passRate: percent(item.passed, item.total) }))
     .sort((a, b) => b.total - a.total);
 }
 
 function buildStageStats(candidates: Candidate[]) {
-  const stats = new Map<string, { name: string; total: number; passed: number; pending: number; ratings: number[] }>();
+  const stats = new Map<string, { name: string; total: number; passed: number; pending: number }>();
   for (const candidate of candidates) {
     for (const record of candidate.interviewRecords) {
-      const item = stats.get(record.stageName) ?? { name: record.stageName, total: 0, passed: 0, pending: 0, ratings: [] };
+      const item = stats.get(record.stageName) ?? { name: record.stageName, total: 0, passed: 0, pending: 0 };
       item.total++;
       if (record.result === "通過") item.passed++;
       if (record.result === null || record.result === "保留") item.pending++;
-      if (record.rating) item.ratings.push(record.rating);
       stats.set(record.stageName, item);
     }
   }
   return Array.from(stats.values())
-    .map((item) => ({ ...item, passRate: percent(item.passed, item.total), avgRating: average(item.ratings) }))
+    .map((item) => ({ ...item, passRate: percent(item.passed, item.total) }))
     .sort((a, b) => b.pending - a.pending || b.total - a.total);
 }
 

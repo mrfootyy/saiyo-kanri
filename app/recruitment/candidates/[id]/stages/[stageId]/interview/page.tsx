@@ -642,7 +642,7 @@ function CandidateBasicInfo({ candidate }: { candidate: Candidate }) {
             {candidate.companies.map((company, index) => (
               <div key={`${company.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2">
                 <span className="min-w-0 truncate text-sm text-slate-800">{company.name}</span>
-                <span className="flex-shrink-0 text-xs text-slate-400">{company.years ? `${company.years}年` : "年数未入力"}</span>
+                <span className="flex-shrink-0 text-xs text-slate-400">{company.years || "在籍期間未入力"}</span>
               </div>
             ))}
           </div>
@@ -696,7 +696,6 @@ function CandidateEvaluationInfo({ candidate, record }: { candidate: Candidate; 
               <InfoRow label="日付" value={record.date} />
               {record.time && <InfoRow label="時間" value={record.time} />}
               <InfoRow label="結果" value={record.result ?? "未判定"} />
-              <InfoRow label="評価" value={record.rating ? `${record.rating}点` : "未評価"} />
             </div>
             {record.interviewers.length > 0 && (
               <div className="flex flex-wrap gap-1.5">

@@ -16,11 +16,7 @@ type Props = {
   onToggleSelect?: (id: string) => void;
   onToggleSelectAll?: () => void;
   allSelected?: boolean;
-  onDuplicate?: (id: string) => void;
-  onArchive?: (id: string) => void;
-  onUnarchive?: (id: string) => void;
   onDelete?: (id: string) => void;
-  showArchived?: boolean;
 };
 
 function SortIcon({ active, order }: { active: boolean; order: SortOrder }) {
@@ -42,11 +38,11 @@ function SortIcon({ active, order }: { active: boolean; order: SortOrder }) {
 export default function CandidateTable({
   candidates, sortKey, sortOrder = "desc", onSort,
   selectedIds, onToggleSelect, onToggleSelectAll, allSelected,
-  onDuplicate, onArchive, onUnarchive, onDelete,
+  onDelete,
 }: Props) {
   const router = useRouter();
   const { interviewStages } = useRecruitment();
-  const hasActions = !!(onDuplicate || onArchive || onUnarchive || onDelete);
+  const hasActions = !!onDelete;
 
   if (candidates.length === 0) {
     return (
@@ -200,39 +196,6 @@ export default function CandidateTable({
                 {hasActions && (
                   <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-0.5">
-                      {onDuplicate && (
-                        <button
-                          onClick={() => onDuplicate(candidate.id)}
-                          aria-label={`${candidate.name}を複製`}
-                          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                      )}
-                      {onArchive && (
-                        <button
-                          onClick={() => onArchive(candidate.id)}
-                          aria-label={`${candidate.name}をアーカイブ`}
-                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8" />
-                          </svg>
-                        </button>
-                      )}
-                      {onUnarchive && (
-                        <button
-                          onClick={() => onUnarchive(candidate.id)}
-                          aria-label={`${candidate.name}のアーカイブを解除`}
-                          className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-blue-50 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                          </svg>
-                        </button>
-                      )}
                       {onDelete && (
                         <button
                           onClick={() => {

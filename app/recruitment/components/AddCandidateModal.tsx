@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRecruitment } from "../context";
 import { Candidate, DocumentFile } from "../types";
 import { extractFromFile, isExtractError } from "../extractFromFile";
-import { POSITION_OPTIONS } from "../constants";
+import { DEFAULT_POSITION_OPTION } from "../constants";
 import DocumentUpload from "./DocumentUpload";
+import PositionSelect from "./PositionSelect";
 
 type Props = {
   onClose: () => void;
@@ -15,7 +16,7 @@ export default function AddCandidateModal({ onClose }: Props) {
   const { addCandidate } = useRecruitment();
 
   const [name, setName] = useState("");
-  const [position, setPosition] = useState<string>(POSITION_OPTIONS[0]);
+  const [position, setPosition] = useState<string>(DEFAULT_POSITION_OPTION);
   const [customPosition, setCustomPosition] = useState("");
   const [nameKana, setNameKana] = useState("");
   const [email, setEmail] = useState("");
@@ -53,6 +54,11 @@ export default function AddCandidateModal({ onClose }: Props) {
       return;
     }
 
+    if (result.name && !name) {
+      setName(result.name);
+      setError("");
+    }
+    if (result.nameKana && !nameKana) setNameKana(result.nameKana);
     if (result.email && !email) setEmail(result.email);
     if (result.phone && !extractedPhone) setExtractedPhone(result.phone);
     if (result.age && !extractedAge) setExtractedAge(result.age);
@@ -138,6 +144,46 @@ export default function AddCandidateModal({ onClose }: Props) {
           )}
 
           <div>
+            <p className="mb-2 text-xs font-semibold text-slate-600">書類</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="mb-1.5 text-xs text-slate-500">履歴書</p>
+                <DocumentUpload label="" file={resumeFile} onChange={(f) => handleFileUpload(f, setResumeFile)} />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs text-slate-500">職務経歴書</p>
+                <DocumentUpload label="" file={cvFile} onChange={(f) => handleFileUpload(f, setCvFile)} />
+              </div>
+            </div>
+
+            {extracting && (
+              <div role="status" className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                AIで解析中...
+              </div>
+            )}
+            {!extracting && extractSuccess && (
+              <div role="status" className="mt-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                AI読み取り完了。情報を自動入力しました。
+              </div>
+            )}
+            {!extracting && extractError && (
+              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {extractError}
+              </div>
+            )}
+          </div>
+
+          <div>
             <label htmlFor="modal-name" className="mb-1.5 block text-xs font-semibold text-slate-600">
               氏名 <span className="text-red-500" aria-hidden="true">*</span>
             </label>
@@ -166,35 +212,15 @@ export default function AddCandidateModal({ onClose }: Props) {
             />
           </div>
 
-          <div>
-            <label htmlFor="modal-position" className="mb-1.5 block text-xs font-semibold text-slate-600">志望職種</label>
-            <div className="relative">
-              <select
-                id="modal-position"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                className={selectCls}
-              >
-                {POSITION_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
-                <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-            {position === "その他" && (
-              <input
-                type="text"
-                value={customPosition}
-                onChange={(e) => setCustomPosition(e.target.value)}
-                placeholder="職種を入力"
-                className={`mt-2 ${inputCls}`}
-              />
-            )}
-          </div>
+          <PositionSelect
+            id="modal-position"
+            value={position}
+            onChange={setPosition}
+            customValue={customPosition}
+            onCustomChange={setCustomPosition}
+            selectClassName={selectCls}
+            inputClassName={inputCls}
+          />
 
           <div>
             <label htmlFor="modal-email" className="mb-1.5 block text-xs font-semibold text-slate-600">メールアドレス</label>
@@ -271,45 +297,6 @@ export default function AddCandidateModal({ onClose }: Props) {
             )}
           </div>
 
-          <div>
-            <p className="mb-2 text-xs font-semibold text-slate-600">書類</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="mb-1.5 text-xs text-slate-500">履歴書</p>
-                <DocumentUpload label="" file={resumeFile} onChange={(f) => handleFileUpload(f, setResumeFile)} />
-              </div>
-              <div>
-                <p className="mb-1.5 text-xs text-slate-500">職務経歴書</p>
-                <DocumentUpload label="" file={cvFile} onChange={(f) => handleFileUpload(f, setCvFile)} />
-              </div>
-            </div>
-
-            {extracting && (
-              <div role="status" className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
-                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                AIで解析中...
-              </div>
-            )}
-            {!extracting && extractSuccess && (
-              <div role="status" className="mt-3 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
-                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                AI読み取り完了。情報を自動入力しました。
-              </div>
-            )}
-            {!extracting && extractError && (
-              <div role="alert" className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-                <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {extractError}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">

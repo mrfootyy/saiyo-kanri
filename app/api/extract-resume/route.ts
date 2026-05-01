@@ -41,18 +41,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
+    const today = new Date().toISOString().slice(0, 10);
     const systemPrompt = `あなたは日本語の履歴書・職務経歴書を解析するAIです。
 以下のJSONフォーマットで情報を抽出してください。見つからない項目はnullにしてください。
 
 {
+  "name": "氏名（漢字・表記名）",
+  "nameKana": "ふりがな（ひらがな。見つからない場合はnull）",
   "email": "メールアドレス",
   "phone": "電話番号（ハイフン区切り）",
   "age": "年齢（数字のみ）",
   "skills": ["スキル1", "スキル2"],
-  "companies": [{"name": "株式会社○○", "years": "3"}, {"name": "合同会社△△", "years": "2"}],
+  "companies": [{"name": "株式会社○○", "years": "2年6ヶ月"}, {"name": "合同会社△△", "years": "10ヶ月"}],
   "githubUrl": "GitHubのURL"
 }
 
+companies の years には在籍期間を月単位まで抽出し、「2年6ヶ月」「10ヶ月」「3年」のような日本語表記で入れてください。
+開始年月と終了年月が記載されている場合は月数まで計算してください。在籍中・現在勤務中の場合は ${today} を基準に計算してください。
 JSONのみを返してください。説明文は不要です。`;
 
     const response = await client.responses.create({
@@ -85,8 +90,27 @@ JSONのみを返してください。説明文は不要です。`;
 
     const parsed = JSON.parse(content);
 
+    const normalizeDuration = (obj: Record<string, unknown>) => {
+      const rawYears = obj.years ?? obj.duration ?? obj.period;
+      const rawMonths = obj.months;
+      const yearsText = rawYears != null ? String(rawYears).trim() : "";
+      const monthsText = rawMonths != null ? String(rawMonths).trim() : "";
+
+      if (!yearsText && !monthsText) return "";
+      if (/[年月]|ヶ月|か月/.test(yearsText)) return yearsText;
+
+      const normalizedYears = yearsText.replace(/年/g, "").trim();
+      const normalizedMonths = monthsText.replace(/ヶ月|か月|月/g, "").trim();
+      const parts: string[] = [];
+      if (normalizedYears && normalizedYears !== "0") parts.push(`${normalizedYears}年`);
+      if (normalizedMonths && normalizedMonths !== "0") parts.push(`${normalizedMonths}ヶ月`);
+      return parts.join("") || yearsText;
+    };
+
     // 型の正規化
     const result = {
+      name: typeof parsed.name === "string" ? parsed.name : undefined,
+      nameKana: typeof parsed.nameKana === "string" ? parsed.nameKana : undefined,
       email: typeof parsed.email === "string" ? parsed.email : undefined,
       phone: typeof parsed.phone === "string" ? parsed.phone : undefined,
       age: parsed.age != null ? String(parsed.age) : undefined,
@@ -97,7 +121,7 @@ JSONのみを返してください。説明文は不要です。`;
               if (typeof c === "string") return { name: c, years: "" };
               if (c && typeof c === "object") {
                 const obj = c as Record<string, unknown>;
-                return { name: String(obj.name ?? ""), years: obj.years != null ? String(obj.years) : "" };
+                return { name: String(obj.name ?? ""), years: normalizeDuration(obj) };
               }
               return null;
             })

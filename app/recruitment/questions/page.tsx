@@ -27,7 +27,6 @@ const TAG_COLORS: Record<string, string> = {
 export default function QuestionsPage() {
   const { interviewQuestions, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion } = useRecruitment();
 
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [openAnswerId, setOpenAnswerId] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<string>("一次面接");
   const [activeTag, setActiveTag] = useState<string>("すべて");
@@ -39,7 +38,12 @@ export default function QuestionsPage() {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [newRequired, setNewRequired] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkCopied, setBulkCopied] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [editModelAnswer, setEditModelAnswer] = useState("");
+  const [editStage, setEditStage] = useState(STAGES[0]);
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editRequired, setEditRequired] = useState(false);
 
   const stagesInUse = useMemo(() => {
     const set = new Set(interviewQuestions.map((q) => q.stage));
@@ -63,12 +67,6 @@ export default function QuestionsPage() {
     return TAGS.filter((t) => set.has(t));
   }, [interviewQuestions, activeStage]);
 
-  function handleCopy(q: InterviewQuestion) {
-    navigator.clipboard.writeText(q.text);
-    setCopiedId(q.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -85,16 +83,6 @@ export default function QuestionsPage() {
     }
   }
 
-  function handleBulkCopy() {
-    const texts = interviewQuestions
-      .filter((q) => selected.has(q.id))
-      .map((q) => q.text)
-      .join("\n\n");
-    navigator.clipboard.writeText(texts);
-    setBulkCopied(true);
-    setTimeout(() => setBulkCopied(false), 2000);
-  }
-
   function handleBulkDelete() {
     if (!window.confirm(`選択した${selected.size}件を削除します。`)) return;
     selected.forEach((id) => deleteInterviewQuestion(id));
@@ -103,6 +91,10 @@ export default function QuestionsPage() {
 
   function toggleTag(tag: string) {
     setNewTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+  }
+
+  function toggleEditTag(tag: string) {
+    setEditTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
   }
 
   function handleAdd() {
@@ -121,6 +113,42 @@ export default function QuestionsPage() {
     setNewRequired(false);
     setShowForm(false);
     setActiveStage(newStage);
+  }
+
+  function startEdit(q: InterviewQuestion) {
+    setEditingId(q.id);
+    setEditText(q.text);
+    setEditModelAnswer(q.modelAnswer);
+    setEditStage(q.stage);
+    setEditTags(q.tags);
+    setEditRequired(!!q.required);
+    setOpenAnswerId(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditText("");
+    setEditModelAnswer("");
+    setEditStage(STAGES[0]);
+    setEditTags([]);
+    setEditRequired(false);
+  }
+
+  function handleSaveEdit(q: InterviewQuestion) {
+    if (!editText.trim()) return;
+    updateInterviewQuestion({
+      ...q,
+      stage: editStage,
+      tags: editTags.length > 0 ? editTags : ["その他"],
+      text: editText.trim(),
+      modelAnswer: editModelAnswer.trim(),
+      required: editRequired,
+    });
+    if (activeStage !== editStage) {
+      setActiveStage(editStage);
+      setActiveTag("すべて");
+    }
+    cancelEdit();
   }
 
   const stageCount = (stage: string) =>
@@ -284,16 +312,6 @@ export default function QuestionsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-slate-600">{selected.size}件選択中</span>
                 <button
-                  onClick={handleBulkCopy}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
-                    bulkCopied
-                      ? "border-blue-600 bg-blue-600 text-white focus-visible:ring-blue-500"
-                      : "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 focus-visible:ring-blue-400"
-                  }`}
-                >
-                  {bulkCopied ? "コピー済み" : "まとめてコピー"}
-                </button>
-                <button
                   onClick={handleBulkDelete}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                 >
@@ -392,89 +410,169 @@ export default function QuestionsPage() {
                     selected.has(q.id) ? "border-blue-300 bg-blue-50/40 shadow-sm" : "border-slate-200"
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(q.id)}
-                      onChange={() => toggleSelect(q.id)}
-                      aria-label={`質問を選択: ${q.text.slice(0, 30)}...`}
-                      className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-                    />
-                    <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-relaxed text-slate-800">{q.text}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {q.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className={`rounded-md px-2 py-0.5 text-xs font-medium ${TAG_COLORS[tag] ?? "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"}`}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {q.required && (
-                        <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
-                          必須
-                        </span>
-                      )}
-                    </div>
-                    {q.modelAnswer && (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => setOpenAnswerId(openAnswerId === q.id ? null : q.id)}
-                          aria-expanded={openAnswerId === q.id}
-                          className="flex items-center gap-1.5 rounded text-sm font-medium text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
-                        >
-                          <svg
-                            className={`h-3.5 w-3.5 transition-transform ${openAnswerId === q.id ? "rotate-90" : ""}`}
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
+                  {editingId === q.id ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        {STAGES.map((stage) => (
+                          <button
+                            key={stage}
+                            type="button"
+                            onClick={() => setEditStage(stage)}
+                            aria-pressed={editStage === stage}
+                            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+                              editStage === stage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 text-slate-600 hover:border-slate-400"
+                            }`}
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                          模範解答・評価ガイドを見る
+                            {stage}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {TAGS.map((tag) => {
+                          const checked = editTags.includes(tag);
+                          const color = TAG_COLORS[tag] ?? "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60";
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => toggleEditTag(tag)}
+                              aria-pressed={checked}
+                              className={`rounded-full px-3 py-1 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+                                checked ? `${color} outline outline-2 outline-blue-500 outline-offset-1` : "border border-slate-300 bg-white text-slate-500 hover:border-slate-400"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={editRequired}
+                          onChange={(e) => setEditRequired(e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-blue-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                        />
+                        <span>
+                          <span className="block text-xs font-semibold text-blue-800">この選考フローの必須質問にする</span>
+                          <span className="mt-0.5 block text-xs text-blue-700">同じステージの候補者用質問リストに、選択しなくても表示されます。</span>
+                        </span>
+                      </label>
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={2}
+                        aria-label="質問文を編集"
+                        className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <textarea
+                        value={editModelAnswer}
+                        onChange={(e) => setEditModelAnswer(e.target.value)}
+                        rows={3}
+                        aria-label="模範解答・評価ガイドを編集"
+                        placeholder="良い回答のポイント・評価基準・避けるべき回答など"
+                        className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                        >
+                          キャンセル
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(q)}
+                          disabled={!editText.trim()}
+                          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                        >
+                          保存する
                         </button>
                       </div>
-                    )}
                     </div>
-                    <div className="flex flex-shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <button
-                      onClick={() => updateInterviewQuestion({ ...q, required: !q.required })}
-                      aria-pressed={!!q.required}
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
-                        q.required
-                          ? "border-blue-300 bg-blue-50 text-blue-700 focus-visible:ring-blue-400"
-                          : "border-slate-300 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-slate-400"
-                      }`}
-                    >
-                      {q.required ? "必須" : "必須にする"}
-
-                    </button>
-                    <button
-                      onClick={() => handleCopy(q)}
-                      aria-label="質問をコピー"
-                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
-                        copiedId === q.id
-                          ? "border-blue-600 bg-blue-600 text-white focus-visible:ring-blue-500"
-                          : "border-slate-300 text-slate-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-slate-400"
-                      }`}
-                    >
-                      {copiedId === q.id ? "コピー済み" : "コピー"}
-                    </button>
-                    <button
-                      onClick={() => deleteInterviewQuestion(q.id)}
-                      aria-label="質問を削除"
-                      className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                    </div>
-                  </div>
-                  {q.modelAnswer && openAnswerId === q.id && (
-                    <div className="mt-3 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-                      <p className="mb-1.5 text-sm font-semibold text-blue-800">評価ガイド</p>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-blue-900">{q.modelAnswer}</p>
-                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start gap-4">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(q.id)}
+                          onChange={() => toggleSelect(q.id)}
+                          aria-label={`質問を選択: ${q.text.slice(0, 30)}...`}
+                          className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm leading-relaxed text-slate-800">{q.text}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {q.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className={`rounded-md px-2 py-0.5 text-xs font-medium ${TAG_COLORS[tag] ?? "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"}`}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {q.required && (
+                              <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
+                                必須
+                              </span>
+                            )}
+                          </div>
+                          {q.modelAnswer && (
+                            <div className="mt-3">
+                              <button
+                                onClick={() => setOpenAnswerId(openAnswerId === q.id ? null : q.id)}
+                                aria-expanded={openAnswerId === q.id}
+                                className="flex items-center gap-1.5 rounded text-sm font-medium text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
+                              >
+                                <svg
+                                  className={`h-3.5 w-3.5 transition-transform ${openAnswerId === q.id ? "rotate-90" : ""}`}
+                                  fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                模範解答・評価ガイドを見る
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => updateInterviewQuestion({ ...q, required: !q.required })}
+                            aria-pressed={!!q.required}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                              q.required
+                                ? "border-blue-300 bg-blue-50 text-blue-700 focus-visible:ring-blue-400"
+                                : "border-slate-300 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-slate-400"
+                            }`}
+                          >
+                            {q.required ? "必須" : "必須にする"}
+                          </button>
+                          <button
+                            onClick={() => startEdit(q)}
+                            aria-label="質問を編集"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                          >
+                            編集
+                          </button>
+                          <button
+                            onClick={() => deleteInterviewQuestion(q.id)}
+                            aria-label="質問を削除"
+                            className="rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      {q.modelAnswer && openAnswerId === q.id && (
+                        <div className="mt-3 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                          <p className="mb-1.5 text-sm font-semibold text-blue-800">評価ガイド</p>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-blue-900">{q.modelAnswer}</p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ))}

@@ -2,7 +2,10 @@ import type { CandidateStatus } from "./types";
 
 export const ACTIVE_STATUSES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接"];
 
+export const DEFAULT_POSITION_OPTION = "UIデザイナー";
+
 export const POSITION_OPTIONS = [
+  DEFAULT_POSITION_OPTION,
   "フロントエンドエンジニア",
   "バックエンドエンジニア",
   "フルスタックエンジニア",
@@ -10,7 +13,6 @@ export const POSITION_OPTIONS = [
   "モバイルエンジニア",
   "データサイエンティスト",
   "プロダクトマネージャー",
-  "UIデザイナー",
   "UXデザイナー",
   "グラフィックデザイナー",
   "マーケター",

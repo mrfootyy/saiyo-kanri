@@ -33,7 +33,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 
 export default function OnboardingPage() {
   const { members, trainingRecords, dailyReports, mentorMeetings, addMember, removeMember } = useOnboarding();
-  const { interviewers } = useRecruitment();
+  const { candidates, interviewers } = useRecruitment();
 
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -46,6 +46,7 @@ export default function OnboardingPage() {
   const [aJoined, setAJoined] = useState(today());
   const [aMentor, setAMentor] = useState("");
   const [aOjt, setAOjt] = useState("");
+  const [aCandidateId, setACandidateId] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -65,6 +66,14 @@ export default function OnboardingPage() {
   const totalCount = members.length;
   const inProgressCount = members.filter((m) => m.onboardingStatus === "進行中").length;
   const needFollowCount = members.filter((m) => m.onboardingStatus === "要フォロー").length;
+  const onboardingCandidateIds = useMemo(
+    () => new Set(members.map((member) => member.candidateId).filter(Boolean)),
+    [members]
+  );
+  const availableCandidates = useMemo(
+    () => candidates.filter((candidate) => !onboardingCandidateIds.has(candidate.id)),
+    [candidates, onboardingCandidateIds]
+  );
 
   function getLatestReport(memberId: string) {
     return dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt))[0] ?? null;
@@ -82,6 +91,7 @@ export default function OnboardingPage() {
     if (!aName.trim() || !aPosition.trim()) return;
     addMember({
       id: crypto.randomUUID(),
+      candidateId: aCandidateId || undefined,
       name: aName.trim(),
       position: aPosition.trim(),
       department: aDept.trim(),
@@ -94,8 +104,31 @@ export default function OnboardingPage() {
       memo: "",
       updatedAt: today(),
     });
-    setAName(""); setAPosition(""); setADept(""); setAJoined(today()); setAMentor(""); setAOjt("");
+    setAName(""); setAPosition(""); setADept(""); setAJoined(today()); setAMentor(""); setAOjt(""); setACandidateId("");
     setShowAddForm(false);
+  }
+
+  function handleSelectCandidate(candidateId: string) {
+    setACandidateId(candidateId);
+    const candidate = candidates.find((item) => item.id === candidateId);
+    if (!candidate) return;
+
+    setAName(candidate.name);
+    setAPosition(candidate.position);
+    setADept("");
+    setAJoined(today());
+    setAMentor(candidate.interviewers[0] ?? "");
+    setAOjt(candidate.interviewers[1] ?? candidate.interviewers[0] ?? "");
+  }
+
+  function resetAddForm() {
+    setAName("");
+    setAPosition("");
+    setADept("");
+    setAJoined(today());
+    setAMentor("");
+    setAOjt("");
+    setACandidateId("");
   }
 
   function handleDelete(e: React.MouseEvent, id: string, name: string) {
@@ -156,6 +189,32 @@ export default function OnboardingPage() {
       {showAddForm && (
         <div className="border-b border-blue-100 bg-blue-50 px-6 py-4">
           <p className="mb-3 text-sm font-semibold text-slate-800">新しいメンバーを追加</p>
+          <div className="mb-4 rounded-lg border border-blue-200 bg-white px-3 py-3">
+            <label className={labelCls}>応募者から登録</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <select value={aCandidateId} onChange={(e) => handleSelectCandidate(e.target.value)} className={selectCls}>
+                  <option value="">手入力で追加</option>
+                  {availableCandidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>
+                      {candidate.name} / {candidate.position} / {candidate.status}
+                    </option>
+                  ))}
+                </select>
+                <SelectArrow />
+              </div>
+              {aCandidateId && (
+                <button
+                  type="button"
+                  onClick={resetAddForm}
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  選択解除
+                </button>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-blue-700">応募者を選ぶと、氏名・職種・担当者を自動入力します。</p>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>氏名 <span className="text-red-500">*</span></label>

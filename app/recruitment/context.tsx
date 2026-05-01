@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Candidate, CandidateStatus, EmailHistory, EmailTemplate, FlowTemplate, HireGoal, InterviewRecord, InterviewQuestion, InterviewStage, SlackChannelConfig, SlackNotification } from "./types";
 import { mockCandidates, mockInterviewStages, mockSlackNotifications, mockEmailHistories, mockInterviewQuestions } from "./mockData";
-import { INTERVIEWER_OPTIONS } from "./constants";
+import { DEFAULT_POSITION_OPTION, INTERVIEWER_OPTIONS, POSITION_OPTIONS } from "./constants";
 import { deriveCandidateStatusFromFlow } from "./statusUtils";
 import { authFetch } from "../../lib/authFetch";
 
@@ -52,9 +52,6 @@ type RecruitmentContextType = {
   addCandidate: (candidate: Candidate) => void;
   addCandidates: (candidates: Candidate[]) => void;
   deleteCandidate: (id: string) => void;
-  archiveCandidate: (id: string) => void;
-  unarchiveCandidate: (id: string) => void;
-  duplicateCandidate: (id: string) => void;
   bulkUpdateStatus: (ids: string[], status: CandidateStatus) => void;
   interviewStages: InterviewStage[];
   setInterviewStages: (stages: InterviewStage[]) => void;
@@ -66,6 +63,9 @@ type RecruitmentContextType = {
   addInterviewQuestion: (q: InterviewQuestion) => void;
   updateInterviewQuestion: (q: InterviewQuestion) => void;
   deleteInterviewQuestion: (id: string) => void;
+  positionOptions: string[];
+  addPositionOption: (name: string) => void;
+  removePositionOption: (name: string) => void;
   interviewers: string[];
   addInterviewer: (name: string) => void;
   removeInterviewer: (name: string) => void;
@@ -95,6 +95,7 @@ type StoredRecruitmentData = {
   emailHistories: EmailHistory[];
   interviewQuestions: InterviewQuestion[];
   interviewers: string[];
+  positionOptions?: string[];
   interviewerMentions?: Record<string, string>;
   emailTemplates?: EmailTemplate[];
   hireGoals?: HireGoal[];
@@ -112,6 +113,13 @@ function isStoredRecruitmentData(value: unknown): value is StoredRecruitmentData
     Array.isArray(data.interviewQuestions) &&
     Array.isArray(data.interviewers)
   );
+}
+
+function normalizePositionOptions(options?: string[]) {
+  const normalized = [DEFAULT_POSITION_OPTION, ...(options ?? POSITION_OPTIONS)]
+    .map((position) => position.trim())
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
 }
 
 function syncCandidateStatuses(candidates: Candidate[], stages: InterviewStage[]): Candidate[] {
@@ -166,6 +174,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   const [slackNotifications, setSlackNotifications] = useState<SlackNotification[]>(mockSlackNotifications);
   const [emailHistories, setEmailHistories] = useState<EmailHistory[]>(mockEmailHistories);
   const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>(mockInterviewQuestions);
+  const [positionOptions, setPositionOptions] = useState<string[]>([...POSITION_OPTIONS]);
   const [interviewers, setInterviewers] = useState<string[]>([...INTERVIEWER_OPTIONS]);
   const [interviewerMentions, setInterviewerMentions] = useState<Record<string, string>>({});
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>(DEFAULT_EMAIL_TEMPLATES);
@@ -216,6 +225,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       setSlackNotifications(data.slackNotifications);
       if (Array.isArray(data.emailHistories)) setEmailHistories(data.emailHistories);
       setInterviewQuestions(data.interviewQuestions);
+      setPositionOptions(normalizePositionOptions(data.positionOptions));
       setInterviewers(data.interviewers);
       setInterviewerMentions(data.interviewerMentions ?? {});
       if (data.emailTemplates?.length) setEmailTemplates(data.emailTemplates);
@@ -236,6 +246,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       slackNotifications,
       emailHistories,
       interviewQuestions,
+      positionOptions,
       interviewers,
       interviewerMentions,
       emailTemplates,
@@ -265,7 +276,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
-  }, [candidates, emailHistories, emailTemplates, flowTemplates, hasLoadedStorage, hireGoals, interviewerMentions, interviewQuestions, interviewStages, interviewers, slackChannelConfig, slackNotifications]);
+  }, [candidates, emailHistories, emailTemplates, flowTemplates, hasLoadedStorage, hireGoals, interviewerMentions, interviewQuestions, interviewStages, interviewers, positionOptions, slackChannelConfig, slackNotifications]);
 
   useEffect(() => {
     if (!hasLoadedStorage) return;
@@ -328,32 +339,6 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     setCandidates((prev) => prev.filter((c) => c.id !== id));
   }
 
-  function archiveCandidate(id: string) {
-    const today = new Date().toISOString().slice(0, 10);
-    setCandidates((prev) => prev.map((c) => c.id === id ? { ...c, archivedAt: today } : c));
-  }
-
-  function unarchiveCandidate(id: string) {
-    setCandidates((prev) => prev.map((c) => c.id === id ? { ...c, archivedAt: undefined } : c));
-  }
-
-  function duplicateCandidate(id: string) {
-    const original = candidates.find((c) => c.id === id);
-    if (!original) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const copy: Candidate = {
-      ...original,
-      id: crypto.randomUUID(),
-      name: `${original.name}（コピー）`,
-      status: "応募受付",
-      appliedAt: today,
-      updatedAt: today,
-      interviewRecords: [],
-      archivedAt: undefined,
-    };
-    setCandidates((prev) => [copy, ...prev]);
-  }
-
   function bulkUpdateStatus(ids: string[], status: CandidateStatus) {
     const today = new Date().toISOString().slice(0, 10);
     setCandidates((prev) =>
@@ -392,6 +377,20 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
 
   function deleteInterviewQuestion(id: string) {
     setInterviewQuestions((prev) => prev.filter((q) => q.id !== id));
+  }
+
+  function addPositionOption(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setPositionOptions((prev) => prev.includes(trimmed) ? prev : [...prev, trimmed]);
+  }
+
+  function removePositionOption(name: string) {
+    if (name === DEFAULT_POSITION_OPTION) return;
+    setPositionOptions((prev) => {
+      const next = prev.filter((position) => position !== name);
+      return next.length > 0 ? next : [DEFAULT_POSITION_OPTION];
+    });
   }
 
   function addInterviewer(name: string) {
@@ -447,9 +446,6 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         addCandidate,
         addCandidates,
         deleteCandidate,
-        archiveCandidate,
-        unarchiveCandidate,
-        duplicateCandidate,
         bulkUpdateStatus,
         interviewStages,
         setInterviewStages: updateInterviewStages,
@@ -461,6 +457,9 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         addInterviewQuestion,
         updateInterviewQuestion,
         deleteInterviewQuestion,
+        positionOptions,
+        addPositionOption,
+        removePositionOption,
         interviewers,
         addInterviewer,
         removeInterviewer,
@@ -549,7 +548,6 @@ function isInterviewRecordForReminder(record: InterviewRecord, stageById: Map<st
 
 function isEvaluationEntered(record: InterviewRecord) {
   if (record.result !== null) return true;
-  if (record.rating !== null) return true;
   if (record.decisionReason?.trim()) return true;
   return record.evaluations?.some((item) => item.grade !== null || item.episode.trim()) ?? false;
 }
