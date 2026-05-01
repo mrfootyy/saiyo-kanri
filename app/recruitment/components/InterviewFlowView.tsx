@@ -38,7 +38,6 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
 
-  // Drag state
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -137,7 +136,6 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
     onUpdate(remaining);
   }
 
-  // Drag and drop handlers
   function handleDragStart(e: React.DragEvent, id: string) {
     setDragId(id);
     e.dataTransfer.effectAllowed = "move";
@@ -175,28 +173,27 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
   const currentDef = getStageDef(form.name);
 
   return (
-    <div className="p-6 space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 p-6">
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">面接フロー管理</h1>
-          <p className="mt-1 text-sm text-gray-500">選考ステージの順序・面接官・形式を定義します。ドラッグで並び替えができます。</p>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">面接フロー管理</h1>
+          <p className="mt-0.5 text-sm text-slate-500">選考ステージの順序・面接官・形式を定義します。ドラッグで並び替えができます。</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowTemplates((v) => !v)}
-            className="flex items-center gap-1.5 rounded-xl border-2 border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             テンプレート
           </button>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-blue-100 hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             選考を追加
@@ -204,24 +201,31 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* テンプレートパネル */}
       {showTemplates && (
-        <div className="rounded-2xl border-2 border-purple-200 bg-purple-50 p-5 space-y-4">
-          <h2 className="text-sm font-bold text-purple-900">フローテンプレート</h2>
+        <div className="space-y-4 rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <h2 className="text-sm font-semibold text-blue-900">フローテンプレート</h2>
           {flowTemplates.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-purple-700">保存済みテンプレートを適用</p>
+              <p className="text-xs font-medium text-blue-700">保存済みテンプレートを適用</p>
               {flowTemplates.map((t) => (
-                <div key={t.id} className="flex items-center justify-between rounded-lg bg-white px-4 py-3 border border-purple-200">
+                <div key={t.id} className="flex items-center justify-between rounded-lg border border-blue-200 bg-white px-4 py-3">
                   <div>
-                    <span className="text-sm font-bold text-gray-800">{t.name}</span>
-                    <span className="ml-2 text-xs text-gray-400">{t.stages.length}ステージ: {t.stages.map((s) => s.name).join(" → ")}</span>
+                    <span className="text-sm font-semibold text-slate-800">{t.name}</span>
+                    <span className="ml-2 text-xs text-slate-400">{t.stages.length}ステージ: {t.stages.map((s) => s.name).join(" → ")}</span>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => applyTemplate(t)}
-                      className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700">適用</button>
-                    <button onClick={() => deleteFlowTemplate(t.id)}
-                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50">削除</button>
+                    <button
+                      onClick={() => applyTemplate(t)}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                    >
+                      適用
+                    </button>
+                    <button
+                      onClick={() => deleteFlowTemplate(t.id)}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                    >
+                      削除
+                    </button>
                   </div>
                 </div>
               ))}
@@ -229,36 +233,44 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
           )}
           {sorted.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-purple-700 mb-2">現在のフローをテンプレートとして保存</p>
+              <p className="mb-2 text-xs font-medium text-blue-700">現在のフローをテンプレートとして保存</p>
               <div className="flex gap-2">
-                <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)}
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && saveAsTemplate()}
                   placeholder="テンプレート名（例：標準エンジニア採用フロー）"
-                  className="flex-1 rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm focus:border-purple-400 focus:outline-none" />
-                <button onClick={saveAsTemplate} disabled={!templateName.trim()}
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-bold text-white hover:bg-purple-700 disabled:opacity-40">保存</button>
+                  className="flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  onClick={saveAsTemplate}
+                  disabled={!templateName.trim()}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                >
+                  保存
+                </button>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* フロー全体像 */}
       {sorted.length > 0 && (
-        <div className="rounded-2xl border border-gray-100 bg-white px-6 py-4 shadow-sm">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">選考フロー全体像</p>
+        <div className="rounded-xl border border-slate-100 bg-white px-5 py-4 shadow-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">選考フロー全体像</p>
           <div className="flex flex-wrap items-center gap-2">
             {sorted.map((stage, idx) => (
               <div key={stage.id} className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white" aria-hidden="true">
                     {stage.order}
                   </span>
                   {stage.name}
                 </div>
                 {idx < sorted.length - 1 && (
-                  <svg className="h-4 w-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg className="h-4 w-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5l7 7-7 7" />
                   </svg>
                 )}
               </div>
@@ -267,14 +279,13 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
         </div>
       )}
 
-      {/* ステージカード一覧（ドラッグ対応） */}
       {sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-white py-20 text-gray-400">
-          <svg className="mb-4 h-12 w-12 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white py-20 text-slate-400">
+          <svg className="mb-4 h-12 w-12 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <p className="text-base font-semibold text-gray-500">選考ステージがありません</p>
-          <p className="mt-1 text-sm text-gray-400">「選考を追加」から作成してください。</p>
+          <p className="text-base font-semibold text-slate-500">選考ステージがありません</p>
+          <p className="mt-1 text-sm text-slate-400">「選考を追加」から作成してください。</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -283,12 +294,8 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
             const isDragging = dragId === stage.id;
             const isDragOver = dragOverId === stage.id && dragId !== stage.id;
             return (
-              <div
-                key={stage.id}
-                className="flex items-center gap-3"
-              >
-                {/* 順番（カードの外） */}
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white shadow-sm shadow-blue-200">
+              <div key={stage.id} className="flex items-center gap-3">
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white" aria-hidden="true">
                   {stage.order}
                 </span>
                 <div
@@ -297,64 +304,63 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
                   onDragOver={(e) => handleDragOver(e, stage.id)}
                   onDrop={() => handleDrop(stage.id)}
                   onDragEnd={handleDragEnd}
-                  className={`flex-1 rounded-2xl border bg-white shadow-sm transition-all ${
-                    isDragging ? "opacity-40 scale-95" : "opacity-100"
-                  } ${isDragOver ? "border-blue-400 ring-2 ring-blue-100" : "border-gray-200"}`}
+                  className={`flex-1 rounded-xl border bg-white shadow-sm transition-all ${
+                    isDragging ? "scale-95 opacity-40" : "opacity-100"
+                  } ${isDragOver ? "border-blue-400 ring-2 ring-blue-100" : "border-slate-200"}`}
                 >
-                <div className="flex items-center gap-4 px-5 py-4">
-                  {/* ドラッグハンドル */}
-                  <div className="flex flex-col items-center cursor-grab active:cursor-grabbing flex-shrink-0">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                    </svg>
-                  </div>
+                  <div className="flex items-center gap-4 px-5 py-4">
+                    <div className="flex flex-shrink-0 cursor-grab flex-col items-center active:cursor-grabbing" aria-hidden="true">
+                      <svg className="h-5 w-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4 8h16M4 16h16" />
+                      </svg>
+                    </div>
 
-                  {/* ステージ情報 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h3 className="text-base font-bold text-gray-900">{stage.name}</h3>
-                      {def?.hasFormat && (
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          stage.format === "オンライン" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
-                        }`}>
-                          {stage.format}
-                        </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold text-slate-900">{stage.name}</h3>
+                        {def?.hasFormat && (
+                          <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+                            stage.format === "オンライン"
+                              ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
+                              : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"
+                          }`}>
+                            {stage.format}
+                          </span>
+                        )}
+                        {!def?.hasFormat && (
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-inset ring-slate-300/60">書類・テスト</span>
+                        )}
+                      </div>
+                      {def?.hasInterviewers && stage.interviewers.length > 0 && (
+                        <div className="mb-1 flex flex-wrap items-center gap-1">
+                          <svg className="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          {stage.interviewers.map((name) => (
+                            <span key={name} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{name}</span>
+                          ))}
+                        </div>
                       )}
-                      {!def?.hasFormat && (
-                        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">書類・テスト</span>
+                      {stage.description && (
+                        <p className="text-xs leading-relaxed text-slate-500">{stage.description}</p>
                       )}
                     </div>
-                    {def?.hasInterviewers && stage.interviewers.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 mb-1">
-                        <svg className="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        {stage.interviewers.map((name) => (
-                          <span key={name} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{name}</span>
-                        ))}
-                      </div>
-                    )}
-                    {stage.description && (
-                      <p className="text-xs text-gray-500 leading-relaxed">{stage.description}</p>
-                    )}
-                  </div>
 
-                  {/* アクション */}
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => openEdit(stage)}
-                      className="rounded-xl border-2 border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-                    >
-                      編集
-                    </button>
-                    <button
-                      onClick={() => handleDelete(stage.id)}
-                      className="rounded-xl border-2 border-red-200 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 hover:border-red-400"
-                    >
-                      削除
-                    </button>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <button
+                        onClick={() => openEdit(stage)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                      >
+                        編集
+                      </button>
+                      <button
+                        onClick={() => handleDelete(stage.id)}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                      >
+                        削除
+                      </button>
+                    </div>
                   </div>
-                </div>
                 </div>
               </div>
             );
@@ -362,52 +368,70 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
         </div>
       )}
 
-      {/* 追加・編集モーダル */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h2 className="text-lg font-bold text-gray-900">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="flow-modal-title"
+            className="w-full max-w-lg rounded-xl bg-white shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <h2 id="flow-modal-title" className="text-base font-semibold text-slate-900">
                 {isAdding ? "選考を追加" : "選考を編集"}
               </h2>
-              <button onClick={closeForm} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <button
+                onClick={closeForm}
+                aria-label="閉じる"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
             <div className="space-y-5 px-6 py-5">
-              {/* 選考名 */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">選考の種類 *</label>
-                <select
-                  value={form.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">選考を選択してください</option>
-                  {STAGE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.name} value={opt.name}>{opt.name}</option>
-                  ))}
-                </select>
+                <label htmlFor="flow-stage-name" className="mb-1.5 block text-xs font-medium text-slate-500">
+                  選考の種類 <span aria-hidden="true">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    id="flow-stage-name"
+                    value={form.name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    className="w-full appearance-none rounded-lg border border-slate-300 bg-white pl-3 pr-9 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">選考を選択してください</option>
+                    {STAGE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.name} value={opt.name}>{opt.name}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
+                    <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
-              {/* 面接官（面接系のみ） */}
               {currentDef?.hasInterviewers && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
+                  <p className="mb-1.5 text-xs font-medium text-slate-500">
                     担当面接官
                     {form.interviewers.length > 0 && (
-                      <span className="ml-1.5 font-normal normal-case tracking-normal text-gray-400">({form.interviewers.length}名)</span>
+                      <span className="ml-1.5 text-slate-400">({form.interviewers.length}名)</span>
                     )}
-                  </label>
-                  <div className="flex flex-wrap gap-2 rounded-xl border border-gray-200 p-3">
+                  </p>
+                  <div className="flex flex-wrap gap-2 rounded-lg border border-slate-200 p-3">
                     {interviewerOptions.map((opt) => {
                       const checked = form.interviewers.includes(opt);
                       return (
                         <button
                           key={opt}
+                          type="button"
+                          aria-pressed={checked}
                           onClick={() =>
                             setForm((f) => ({
                               ...f,
@@ -416,10 +440,10 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
                                 : [...f.interviewers, opt],
                             }))
                           }
-                          className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors ${
+                          className={`rounded-full border px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                             checked
                               ? "border-blue-500 bg-blue-500 text-white"
-                              : "border-gray-200 text-gray-500 hover:border-blue-200 hover:text-blue-500"
+                              : "border-slate-200 text-slate-500 hover:border-blue-200 hover:text-blue-600"
                           }`}
                         >
                           {opt}
@@ -430,30 +454,29 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
                 </div>
               )}
 
-              {/* 面接形式（面接系のみ） */}
               {currentDef?.hasFormat && (
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">面接形式</label>
+                  <p className="mb-1.5 text-xs font-medium text-slate-500">面接形式</p>
                   <div className="flex gap-3">
                     {(["オンライン", "対面"] as InterviewFormat[]).map((fmt) => (
                       <button
                         key={fmt}
+                        type="button"
+                        aria-pressed={form.format === fmt}
                         onClick={() => setForm((f) => ({ ...f, format: fmt }))}
-                        className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-bold transition-all ${
+                        className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                           form.format === fmt
-                            ? fmt === "オンライン"
-                              ? "border-blue-500 bg-blue-500 text-white"
-                              : "border-green-500 bg-green-500 text-white"
-                            : "border-gray-200 text-gray-400 hover:border-gray-300"
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-200 text-slate-400 hover:border-slate-300"
                         }`}
                       >
                         <span className="flex items-center justify-center gap-1.5">
                           {fmt === "オンライン" ? (
-                            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                           ) : (
-                            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           )}
-                          {fmt === "オンライン" ? "オンライン" : "対面"}
+                          {fmt}
                         </span>
                       </button>
                     ))}
@@ -461,30 +484,30 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
                 </div>
               )}
 
-              {/* 説明 */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">説明・評価ポイント</label>
+                <label htmlFor="flow-stage-desc" className="mb-1.5 block text-xs font-medium text-slate-500">説明・評価ポイント</label>
                 <textarea
+                  id="flow-stage-desc"
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
                   placeholder="このステージで確認すること・評価基準など"
-                  className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
               <button
                 onClick={closeForm}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
               >
                 キャンセル
               </button>
               <button
                 onClick={handleSave}
                 disabled={!form.name}
-                className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
               >
                 保存
               </button>

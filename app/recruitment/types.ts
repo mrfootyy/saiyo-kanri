@@ -103,8 +103,24 @@ export type EvaluationItem = {
   episode: string;
 };
 
+export type InterviewAudioSummary = {
+  id: string;
+  recordedAt: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  durationSeconds: number;
+  dataUrl?: string;
+  transcript: string;
+  summary: string;
+  highlights: string[];
+  concerns: string[];
+  nextActions: string[];
+};
+
 export type InterviewRecord = {
   id: string;
+  stageId?: string;
   stageName: string;
   date: string;
   time?: string;
@@ -116,6 +132,7 @@ export type InterviewRecord = {
   decisionReason?: string;
   format?: InterviewFormat;
   zoomUrl?: string;
+  audioSummary?: InterviewAudioSummary;
 };
 
 export type InterviewFormat = "オンライン" | "対面";
@@ -126,6 +143,7 @@ export type InterviewQuestion = {
   tags: string[];
   text: string;
   modelAnswer: string;
+  required?: boolean;
 };
 
 export type InterviewStage = {

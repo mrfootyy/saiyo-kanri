@@ -21,16 +21,20 @@ export async function POST(request: Request) {
     }
 
     await Promise.all(
-      (notifications as SlackNotification[]).map((notification) =>
-        fetch(webhookUrl, {
+      (notifications as SlackNotification[]).map(async (notification) => {
+        const response = await fetch(webhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             text: formatSlackMessage(notification),
             mrkdwn: true,
           }),
-        })
-      )
+        });
+
+        if (!response.ok) {
+          throw new Error(`Slack webhook failed: ${response.status}`);
+        }
+      })
     );
 
     return Response.json({ ok: true });
@@ -44,5 +48,5 @@ export async function POST(request: Request) {
 }
 
 function formatSlackMessage(notification: SlackNotification) {
-  return `*採用管理通知*\n${notification.message}`;
+  return `*採用管理通知* (${notification.channel})\n${notification.message}`;
 }

@@ -7,35 +7,20 @@ import { useRecruitment } from "../../../../context";
 import {
   EvaluationGrade,
   EvaluationItem,
+  InterviewAudioSummary,
   InterviewFormat,
+  InterviewQuestion,
   InterviewRating,
   InterviewRecord,
   InterviewResult,
   InterviewStage,
   SlackNotification,
+  SlackChannelConfig,
 } from "../../../../types";
-import { INTERVIEWER_OPTIONS, STAGE_TYPE_OPTIONS, getDocumentEvaluationItems, getInterviewEvaluationItems } from "../../../../constants";
+import { STAGE_TYPE_OPTIONS, getDocumentEvaluationItems, getInterviewEvaluationItems } from "../../../../constants";
 import { deriveCandidateStatusFromFlow } from "../../../../statusUtils";
 
 const RESULT_OPTIONS: InterviewResult[] = ["通過", "保留", "不採用"];
-
-const RESULT_BUTTON: Record<InterviewResult, string> = {
-  通過: "border-green-600 bg-green-600 text-white shadow-lg shadow-green-200 ring-2 ring-green-200",
-  保留: "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-200 ring-2 ring-amber-200",
-  不採用: "border-red-600 bg-red-600 text-white shadow-lg shadow-red-200 ring-2 ring-red-200",
-};
-
-const RESULT_IDLE: Record<InterviewResult, string> = {
-  通過: "border-gray-300 bg-white text-gray-600 hover:border-green-400 hover:bg-green-50 hover:text-green-700",
-  保留: "border-gray-300 bg-white text-gray-600 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700",
-  不採用: "border-gray-300 bg-white text-gray-600 hover:border-red-400 hover:bg-red-50 hover:text-red-700",
-};
-
-const RESULT_ICON: Record<InterviewResult, string> = {
-  通過: "✓",
-  保留: "△",
-  不採用: "✕",
-};
 
 const GRADE_OPTIONS: EvaluationGrade[] = ["1", "2", "3", "4", "5"];
 
@@ -48,66 +33,83 @@ const GRADE_LABEL: Record<EvaluationGrade, string> = {
 };
 
 const GRADE_ACTIVE: Record<EvaluationGrade, string> = {
-  "5": "bg-violet-600 text-white border-violet-600",
-  "4": "bg-green-600 text-white border-green-600",
-  "3": "bg-blue-600 text-white border-blue-600",
-  "2": "bg-amber-500 text-white border-amber-500",
-  "1": "bg-red-600 text-white border-red-600",
+  "5": "bg-blue-700 text-white border-blue-700",
+  "4": "bg-blue-600 text-white border-blue-600",
+  "3": "bg-blue-500 text-white border-blue-500",
+  "2": "bg-blue-400 text-white border-blue-400",
+  "1": "bg-slate-500 text-white border-slate-500",
 };
 
-const GRADE_IDLE = "bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50";
+const GRADE_IDLE = "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50";
 
-function StarRating({
-  value,
-  onChange,
-}: {
-  value: InterviewRating | null;
-  onChange?: (v: InterviewRating) => void;
-}) {
+const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+const textareaCls = "w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+
+function StarIcon({ filled }: { filled: boolean }) {
   return (
-    <div className="flex gap-1">
+    <svg className={`h-5 w-5 transition-colors ${filled ? "text-blue-500" : "text-slate-200"}`} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+  );
+}
+
+function StarRating({ value, onChange }: { value: InterviewRating | null; onChange?: (v: InterviewRating) => void }) {
+  return (
+    <div className="flex gap-0.5" role="group" aria-label="総合評価">
       {([1, 2, 3, 4, 5] as InterviewRating[]).map((n) => (
         <button
           key={n}
           type="button"
           onClick={() => onChange?.(n)}
           aria-label={`${n}点`}
-          className={`text-3xl leading-none transition-colors ${
-            value !== null && n <= value ? "text-yellow-400" : "text-gray-300"
-          } ${onChange ? "cursor-pointer hover:text-yellow-300" : "cursor-default"}`}
+          aria-pressed={value !== null && n <= value}
+          className={`rounded p-0.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 ${onChange ? "cursor-pointer hover:scale-110" : "cursor-default"} transition-transform`}
         >
-          ★
+          <StarIcon filled={value !== null && n <= value} />
         </button>
       ))}
     </div>
   );
 }
 
-function isStageAccessible(
-  stage: InterviewStage,
-  allStages: InterviewStage[],
-  records: InterviewRecord[]
-): boolean {
+function ResultIcon({ result }: { result: InterviewResult }) {
+  if (result === "通過") return (
+    <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+    </svg>
+  );
+  if (result === "保留") return (
+    <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+  return (
+    <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function isStageAccessible(stage: InterviewStage, allStages: InterviewStage[], records: InterviewRecord[]): boolean {
   const sorted = [...allStages].sort((a, b) => a.order - b.order);
   const idx = sorted.findIndex((s) => s.id === stage.id);
   for (let i = 0; i < idx; i++) {
-    const rec = records.find((r) => r.stageName === sorted[i].name);
+    const rec = records.find((r) => r.stageId ? r.stageId === sorted[i].id : r.stageName === sorted[i].name);
     if (!rec || rec.result !== "通過") return false;
   }
   return true;
 }
 
-
 export default function StageDetailPage() {
   const params = useParams();
-  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions, getInterviewerMention } = useRecruitment();
+  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions, interviewQuestions, getInterviewerMention, slackChannelConfig } = useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
   const stage = interviewStages.find((s) => s.id === params.stageId);
 
   if (!candidate || !stage) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-gray-500">
+      <div className="flex h-full flex-col items-center justify-center p-6 text-slate-500">
         <p className="text-base">ページが見つかりません。</p>
         <Link href="/recruitment/candidates" className="mt-3 text-sm text-blue-600 hover:underline">
           ← 応募者一覧に戻る
@@ -121,32 +123,28 @@ export default function StageDetailPage() {
   const sortedIdx = sorted.findIndex((s) => s.id === stage.id);
   const prevStage = sortedIdx > 0 ? sorted[sortedIdx - 1] : null;
   const nextStage = sortedIdx < sorted.length - 1 ? sorted[sortedIdx + 1] : null;
-  const nextAccessible = nextStage
-    ? isStageAccessible(nextStage, interviewStages, candidate.interviewRecords)
-    : false;
+  const nextAccessible = nextStage ? isStageAccessible(nextStage, interviewStages, candidate.interviewRecords) : false;
 
   function handleSave(updatedRecords: InterviewRecord[], notifications: SlackNotification[]) {
     const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-    const ts = `${today} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const ts = `${today} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const newStatus = deriveCandidateStatusFromFlow(updatedRecords, interviewStages, candidate!.status);
-    const visibleNotifications = notifications.filter((notification) => notification.channel !== "面接官DM");
+    const visibleNotifications = notifications.filter((n) => n.channel !== "面接官DM");
 
     if (newStatus !== candidate!.status) {
       const statusLine = `ステータスも「${candidate!.status}」から「${newStatus}」に更新されました。`;
-      const channelNotification = visibleNotifications.find((notification) => notification.channel === "#採用チャンネル");
-
-      if (channelNotification) {
-        channelNotification.message = `${channelNotification.message}\n${statusLine}`;
+      const ch = visibleNotifications.find((n) => n.channel === "#採用チャンネル");
+      if (ch) {
+        ch.message = `${ch.message}\n${statusLine}`;
       } else {
-        const statusEmoji = newStatus === "内定" ? "🎉" : newStatus === "不採用" ? "❌" : "🔄";
         visibleNotifications.push({
           id: crypto.randomUUID(),
           candidateId: candidate!.id,
           candidateName: candidate!.name,
           sentAt: ts,
-          channel: "#採用チャンネル",
-          message: `${statusEmoji} ${candidate!.name}さんの${statusLine}`,
+          channel: slackChannelConfig.statusChange,
+          message: `${candidate!.name}さんの${statusLine}`,
         });
       }
     }
@@ -156,39 +154,44 @@ export default function StageDetailPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* ヘッダー */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
+    <div className="flex h-full flex-col">
+      {/* ページヘッダー */}
+      <div className="border-b border-slate-200 bg-white px-6 py-4">
         <Link
           href={`/recruitment/candidates/${candidate.id}`}
-          className="mb-3 flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-800"
+          className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
           </svg>
           {candidate.name}
         </Link>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 flex-col items-center justify-center rounded-full bg-blue-600 text-white shadow-md shadow-blue-200">
-              <span className="text-[9px] font-bold leading-none tracking-wider">STEP</span>
-              <span className="text-xl font-bold leading-none mt-0.5">
-                {String(sortedIdx + 1).padStart(2, "0")}
-              </span>
-            </div>
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white" aria-hidden="true">
+              {sortedIdx + 1}
+            </span>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{stage.name}</h1>
-              <p className="text-sm text-gray-600">{candidate.name}</p>
+              <h1 className="text-xl font-semibold tracking-tight text-slate-900">{stage.name}</h1>
+              <p className="text-xs text-slate-400">{candidate.name} · {candidate.position}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {accessible && (
+              <Link
+                href={`/recruitment/candidates/${candidate.id}/stages/${stage.id}/interview`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+              >
+                面接モード
+              </Link>
+            )}
             {prevStage && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${prevStage.id}`}
-                className="flex items-center gap-1.5 rounded-lg border-2 border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 hover:border-gray-400 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
                 </svg>
                 {prevStage.name}
               </Link>
@@ -197,18 +200,18 @@ export default function StageDetailPage() {
               nextAccessible ? (
                 <Link
                   href={`/recruitment/candidates/${candidate.id}/stages/${nextStage.id}`}
-                  className="flex items-center gap-1.5 rounded-lg border-2 border-blue-500 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                 >
                   {nextStage.name}
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 5l7 7-7 7" />
                   </svg>
                 </Link>
               ) : (
-                <span className="flex items-center gap-1.5 rounded-lg border-2 border-gray-200 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed">
+                <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-400">
                   {nextStage.name}
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </span>
               )
@@ -217,26 +220,24 @@ export default function StageDetailPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
         {!accessible ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white py-20 text-center shadow-sm">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100">
-              <svg className="h-8 w-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-20 text-center shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+              <svg className="h-7 w-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <p className="text-lg font-bold text-gray-800">このステージはまだ開始できません</p>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="text-base font-semibold text-slate-800">このステージはまだ開始できません</p>
+            <p className="mt-1.5 text-sm text-slate-500">
               {prevStage ? (
-                <>「{prevStage.name}」の判定を<span className="font-semibold text-green-700">通過</span>にすると開放されます。</>
-              ) : (
-                "前のステージを完了させてください。"
-              )}
+                <>「{prevStage.name}」の判定を<span className="font-semibold text-blue-600">通過</span>にすると開放されます。</>
+              ) : "前のステージを完了させてください。"}
             </p>
             {prevStage && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${prevStage.id}`}
-                className="mt-6 rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
                 {prevStage.name} を確認する
               </Link>
@@ -248,11 +249,12 @@ export default function StageDetailPage() {
             candidateName={candidate.name}
             candidatePosition={candidate.position}
             stage={stage}
-            sortedIdx={sortedIdx}
-            allStages={sorted}
             records={candidate.interviewRecords}
+            assignedQuestionIds={candidate.assignedQuestions ?? []}
+            interviewQuestions={interviewQuestions}
             interviewerOptions={interviewerOptions}
             getInterviewerMention={getInterviewerMention}
+            slackChannelConfig={slackChannelConfig}
             onSave={handleSave}
           />
         )}
@@ -266,32 +268,34 @@ function StageForm({
   candidateName,
   candidatePosition,
   stage,
-  sortedIdx,
-  allStages,
   records,
+  assignedQuestionIds,
+  interviewQuestions,
   interviewerOptions,
   getInterviewerMention,
+  slackChannelConfig,
   onSave,
 }: {
   candidateId: string;
   candidateName: string;
   candidatePosition: string;
   stage: InterviewStage;
-  sortedIdx: number;
-  allStages: InterviewStage[];
   records: InterviewRecord[];
+  assignedQuestionIds: string[];
+  interviewQuestions: InterviewQuestion[];
   interviewerOptions: string[];
   getInterviewerMention: (name: string) => string;
+  slackChannelConfig: SlackChannelConfig;
   onSave: (records: InterviewRecord[], notifications: SlackNotification[]) => void;
 }) {
-  const existing = records.find((r) => r.stageName === stage.name) ?? null;
+  const existing = records.find((r) => r.stageId ? r.stageId === stage.id : r.stageName === stage.name) ?? null;
+  const recordIdRef = useRef(existing?.id ?? crypto.randomUUID());
 
   const stageDef = STAGE_TYPE_OPTIONS.find((s) => s.name === stage.name);
   const showInterviewers = stageDef?.hasInterviewers ?? true;
   const showFormat = stageDef?.hasFormat ?? true;
   const isDocumentStage = !stageDef?.hasInterviewers && !stageDef?.hasFormat;
 
-  // 書類選考の場合は職種別評価項目、それ以外はデフォルト
   function makeInitialEvaluations(): EvaluationItem[] {
     if (existing?.evaluations) return existing.evaluations;
     const items = isDocumentStage
@@ -310,20 +314,37 @@ function StageForm({
   const [decisionReason, setDecisionReason] = useState(existing?.decisionReason ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [rating, setRating] = useState<InterviewRating | null>(existing?.rating ?? null);
+  const [audioSummary, setAudioSummary] = useState<InterviewAudioSummary | null>(existing?.audioSummary ?? null);
+  const [recordingState, setRecordingState] = useState<"idle" | "recording" | "stopped">("idle");
+  const [recordingSeconds, setRecordingSeconds] = useState(existing?.audioSummary?.durationSeconds ?? 0);
+  const [audioError, setAudioError] = useState("");
+  const [micPermission, setMicPermission] = useState<PermissionState | "unsupported" | "unknown">("unknown");
+  const [audioProcessing, setAudioProcessing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const firstAutoSave = useRef(true);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingSecondsRef = useRef(recordingSeconds);
 
-  const evaluationReady = useMemo(() => {
-    const gradesReady = evaluations.every((item) => item.grade !== null);
-    const episodesReady = evaluations.every((item) => item.episode.trim().length > 0);
-    const reasonReady = decisionReason.trim().length > 0;
-    const ratingReady = isDocumentStage || rating !== null;
-    return gradesReady && episodesReady && reasonReady && ratingReady;
+  const completedCount = useMemo(() => {
+    let n = 0;
+    if (evaluations.every((e) => e.grade !== null)) n++;
+    if (evaluations.every((e) => e.episode.trim())) n++;
+    if (decisionReason.trim()) n++;
+    if (isDocumentStage || rating !== null) n++;
+    return n;
   }, [decisionReason, evaluations, isDocumentStage, rating]);
-
-  const evaluationHelpText = isDocumentStage
-    ? "すべての評点、具体的なエピソード、合否判断の理由を入力すると、判定を選べます。"
-    : "総合評価、すべての評点、具体的なエピソード、合否判断の理由を入力すると、判定を選べます。";
+  const totalRequired = 4;
+  const evaluationReady = completedCount === totalRequired;
+  const stageQuestionItems = useMemo(() => {
+    const assigned = new Set(assignedQuestionIds);
+    return interviewQuestions.filter((question) => {
+      if (question.stage !== stage.name) return false;
+      return question.required || assigned.has(question.id);
+    });
+  }, [assignedQuestionIds, interviewQuestions, stage.name]);
 
   function updateEval(i: number, patch: Partial<EvaluationItem>) {
     setEvaluations((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
@@ -331,7 +352,8 @@ function StageForm({
 
   function buildRecord(): InterviewRecord {
     return {
-      id: existing?.id ?? crypto.randomUUID(),
+      id: recordIdRef.current,
+      stageId: stage.id,
       stageName: stage.name,
       date,
       time: time.trim() || undefined,
@@ -343,6 +365,7 @@ function StageForm({
       decisionReason,
       format: showFormat ? format : undefined,
       zoomUrl: showFormat && format === "オンライン" && zoomUrl.trim() ? zoomUrl.trim() : undefined,
+      audioSummary: audioSummary ?? undefined,
     };
   }
 
@@ -350,26 +373,27 @@ function StageForm({
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
-    const updated = existing
-      ? records.map((r) => (r.id === existing.id ? record : r))
+    const currentRecord = records.find((r) =>
+      r.id === record.id || (r.stageId ? r.stageId === stage.id : r.stageName === stage.name)
+    );
+    const updated = currentRecord
+      ? records.map((r) => (r.id === currentRecord.id ? { ...record, id: currentRecord.id } : r))
       : [...records, record];
 
     const notifications: SlackNotification[] = [];
 
-    // 合否結果が変わったらSlack通知
     if (record.result !== null && record.result !== existing?.result) {
-      const resultEmoji = record.result === "通過" ? "✅" : record.result === "保留" ? "⚠️" : "❌";
       notifications.push({
         id: crypto.randomUUID(),
         candidateId,
         candidateName,
         sentAt: timestamp,
-        channel: "#採用チャンネル",
-        message: `${resultEmoji} ${candidateName}さんの【${stage.name}】の判定が「${record.result}」になりました。`,
+        channel: slackChannelConfig.offerDecision,
+        message: `${candidateName}さんの【${stage.name}】の判定が「${record.result}」になりました。`,
       });
     }
 
-    const prevInterviewers = new Set(existing?.interviewers ?? []);
+    const prevInterviewers = new Set(currentRecord?.interviewers ?? []);
     const addedInterviewers = record.interviewers.filter((name) => !prevInterviewers.has(name));
     if (addedInterviewers.length > 0) {
       const mentions = addedInterviewers.map((name) => getInterviewerMention(name)).join(" ");
@@ -378,7 +402,7 @@ function StageForm({
         candidateId,
         candidateName,
         sentAt: timestamp,
-        channel: "#採用チャンネル",
+        channel: slackChannelConfig.interviewAssign,
         message: `${mentions} ${candidateName}さんの【${stage.name}】を担当してください。日程: ${date}`,
       });
     }
@@ -389,391 +413,730 @@ function StageForm({
   }
 
   useEffect(() => {
-    if (firstAutoSave.current) {
-      firstAutoSave.current = false;
+    if (firstAutoSave.current) { firstAutoSave.current = false; return; }
+    setSaveState("saving");
+    const timer = window.setTimeout(() => persistRecord(buildRecord()), 700);
+    return () => window.clearTimeout(timer);
+  }, [audioSummary, date, time, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
+
+  useEffect(() => {
+    recordingSecondsRef.current = recordingSeconds;
+  }, [recordingSeconds]);
+
+  useEffect(() => () => {
+    if (recordingTimerRef.current) window.clearInterval(recordingTimerRef.current);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  useEffect(() => {
+    let permissionStatus: PermissionStatus | null = null;
+
+    async function loadMicrophonePermission() {
+      if (!navigator.permissions?.query) {
+        setMicPermission("unsupported");
+        return;
+      }
+
+      try {
+        permissionStatus = await navigator.permissions.query({ name: "microphone" as PermissionName });
+        setMicPermission(permissionStatus.state);
+        permissionStatus.onchange = () => setMicPermission(permissionStatus?.state ?? "unknown");
+      } catch {
+        setMicPermission("unsupported");
+      }
+    }
+
+    loadMicrophonePermission();
+    return () => {
+      if (permissionStatus) permissionStatus.onchange = null;
+    };
+  }, []);
+
+  async function startRecording() {
+    setAudioError("");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setAudioError("このブラウザでは録音に対応していません。Chromeなどで試してください。");
       return;
     }
 
-    setSaveState("saving");
-    const timer = window.setTimeout(() => {
-      persistRecord(buildRecord());
-    }, 700);
+    if (micPermission === "denied") {
+      setAudioError("マイクがブラウザ側でブロックされています。アドレスバー左のサイト設定からマイクを「許可」に変更してから、もう一度録音開始を押してください。");
+      return;
+    }
 
-    return () => window.clearTimeout(timer);
-  }, [date, time, decisionReason, evaluations, format, interviewers, notes, rating, result, zoomUrl]);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicPermission("granted");
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+
+      chunksRef.current = [];
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      setRecordingSeconds(0);
+      recordingSecondsRef.current = 0;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        if (blob.size === 0) {
+          setAudioError("録音データを作成できませんでした。もう一度試してください。");
+          return;
+        }
+        const dataUrl = await blobToDataUrl(blob);
+        setAudioSummary((prev) => ({
+          id: prev?.id ?? crypto.randomUUID(),
+          recordedAt: formatTimestamp(new Date()),
+          fileName: `interview-${stage.id}-${Date.now()}.webm`,
+          mimeType: blob.type || "audio/webm",
+          size: blob.size,
+          durationSeconds: recordingSecondsRef.current,
+          dataUrl,
+          transcript: prev?.transcript ?? "",
+          summary: prev?.summary ?? "",
+          highlights: prev?.highlights ?? [],
+          concerns: prev?.concerns ?? [],
+          nextActions: prev?.nextActions ?? [],
+        }));
+        setRecordingState("stopped");
+      };
+
+      recorder.start();
+      setRecordingState("recording");
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      setRecordingState("idle");
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        setMicPermission("denied");
+        setAudioError("マイクの使用が許可されませんでした。ブロックした場合は、アドレスバー左のサイト設定からマイクを許可に変更してください。");
+        return;
+      }
+
+      setAudioError("マイクを開始できませんでした。別のマイクが使用中でないか確認してください。");
+    }
+  }
+
+  function stopRecording() {
+    if (recordingTimerRef.current) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  async function summarizeRecording() {
+    if (!audioSummary?.dataUrl) {
+      setAudioError("録音データがこのブラウザに残っていません。もう一度録音してください。");
+      return;
+    }
+
+    setAudioProcessing(true);
+    setAudioError("");
+    try {
+      const blob = await dataUrlToBlob(audioSummary.dataUrl);
+      const formData = new FormData();
+      formData.append("audio", blob, audioSummary.fileName);
+      formData.append("candidateName", candidateName);
+      formData.append("candidatePosition", candidatePosition);
+      formData.append("stageName", stage.name);
+      formData.append("notes", notes);
+      formData.append("questions", stageQuestionItems.map((question, index) => `Q${index + 1}. ${question.text}`).join("\n"));
+
+      const response = await fetch("/api/ai/interview-audio-summary", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "録音の要約に失敗しました。");
+
+      setAudioSummary((prev) => prev ? {
+        ...prev,
+        transcript: result.transcript ?? "",
+        summary: result.summary ?? "",
+        highlights: Array.isArray(result.highlights) ? result.highlights : [],
+        concerns: Array.isArray(result.concerns) ? result.concerns : [],
+        nextActions: Array.isArray(result.nextActions) ? result.nextActions : [],
+      } : prev);
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "録音の要約に失敗しました。");
+    } finally {
+      setAudioProcessing(false);
+    }
+  }
 
   return (
-    <div className="space-y-5">
-      {/* ① 判定 */}
-      <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-200">
-        <p className="mb-1 text-xs font-bold uppercase tracking-widest text-gray-500">判定</p>
-        <p className="mb-5 text-xl font-bold text-gray-900">この選考の合否を選択してください</p>
-        {!evaluationReady && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-            {evaluationHelpText}
+    <div className="mx-auto max-w-4xl space-y-4">
+      {/* 合否判定 */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">合否判定</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {evaluationReady
+                ? "評価が完了しました。判定を選択してください。"
+                : `評価を完了すると判定を選択できます（${completedCount}/${totalRequired} 完了）`}
+            </p>
           </div>
-        )}
-        <div className="flex gap-3">
-          {RESULT_OPTIONS.map((r) => (
-            <button
-              key={r}
-              disabled={!evaluationReady}
-              onClick={() => {
-                if (!evaluationReady) return;
-                setResult(result === r ? null : r);
-              }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 py-5 text-xl font-bold transition-all ${
-                !evaluationReady
-                  ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
-                  : result === r ? RESULT_BUTTON[r] : `${RESULT_IDLE[r]}`
-              }`}
-            >
-              <span className="text-2xl">{RESULT_ICON[r]}</span>
-              {r}
-            </button>
-          ))}
+          {result && (
+            <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${
+              result === "通過" ? "bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-200" :
+              result === "保留" ? "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" :
+              "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"
+            }`}>
+              <ResultIcon result={result} />
+              {result}
+            </span>
+          )}
+        </div>
+        <div className="px-5 py-4">
+          {!evaluationReady && (
+            <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                style={{ width: `${(completedCount / totalRequired) * 100}%` }}
+                role="progressbar"
+                aria-valuenow={completedCount}
+                aria-valuemin={0}
+                aria-valuemax={totalRequired}
+                aria-label="評価進捗"
+              />
+            </div>
+          )}
+          <div className="flex gap-2">
+            {RESULT_OPTIONS.map((r) => (
+              <button
+                key={r}
+                disabled={!evaluationReady}
+                onClick={() => { if (!evaluationReady) return; setResult(result === r ? null : r); }}
+                aria-pressed={result === r}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${
+                  !evaluationReady
+                    ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
+                    : result === r
+                      ? r === "通過"
+                        ? "border-blue-600 bg-blue-600 text-white shadow-sm"
+                        : r === "保留"
+                          ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                          : "border-slate-600 bg-slate-600 text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <ResultIcon result={r} />
+                {r}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 書類選考・テスト系: 評価表＋メモ */}
       {isDocumentStage ? (
         <>
-          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-200">
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-gray-500">実施日時</p>
-            <div className="flex gap-3">
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="flex-1 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              <input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-36 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
+          {/* 実施日時 */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-900">実施日時</h2>
+            </div>
+            <div className="flex gap-3 px-5 py-4">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`flex-1 ${inputCls}`} />
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`w-36 ${inputCls}`} />
             </div>
           </div>
 
-          {/* 書類選考 評価表 */}
-          <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 pt-5 pb-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500">書類評価項目</p>
-              <p className="mt-1 text-xs text-gray-500">職種：{candidatePosition}　／　5=秀、4=優、3=良、2=可、1=不可</p>
-            </div>
-            <table className="w-full">
-              <thead>
-                <tr className="border-y border-gray-200 bg-gray-50">
-                  <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 w-48">評価項目</th>
-                  <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 w-44">評点</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
-                    コメント・根拠
-                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {evaluations.map((item, i) => (
-                  <tr key={item.name} className="border-b border-gray-100 last:border-b-0">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800 align-top">{item.name}</td>
-                    <td className="px-4 py-4 align-top">
-                      <div className="flex items-center justify-center gap-1">
-                        {GRADE_OPTIONS.map((g) => (
-                          <button
-                            key={g}
-                            onClick={() => updateEval(i, { grade: item.grade === g ? null : g })}
-                            title={GRADE_LABEL[g]}
-                            className={`h-10 w-10 rounded-lg border-2 text-base font-bold transition-all ${
-                              item.grade === g ? GRADE_ACTIVE[g] : GRADE_IDLE
-                            }`}
-                          >
-                            {g}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <textarea
-                        value={item.episode}
-                        onChange={(e) => updateEval(i, { episode: e.target.value })}
-                        rows={2}
-                        placeholder="評価の根拠を具体的に記載してください。"
-                        className="w-full resize-none rounded-lg border-2 border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
-                      />
-                    </td>
-                  </tr>
-                ))}
-                <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-bold text-gray-800 align-top">
-                    合否判断の理由
-                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
-                  </td>
-                  <td />
-                  <td className="px-4 py-3 align-top">
-                    <textarea
-                      value={decisionReason}
-                      onChange={(e) => setDecisionReason(e.target.value)}
-                      rows={3}
-                      placeholder="合否の判断理由を記載してください。"
-                      className="w-full resize-none rounded-lg border-2 border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {/* 書類評価 */}
+          <EvaluationCard
+            title="書類評価"
+            subtitle={`職種：${candidatePosition}　5=秀、4=優、3=良、2=可、1=不可`}
+            evaluations={evaluations}
+            decisionReason={decisionReason}
+            onUpdateEval={updateEval}
+            onUpdateReason={setDecisionReason}
+          />
 
-          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-200">
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-gray-500">メモ</p>
-            <p className="mb-3 text-sm font-semibold text-gray-700">選考に関する補足・コメント</p>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={4}
-              placeholder="書類・テストの総合所感、気になった点など自由に記載してください。"
-              className="w-full resize-none rounded-xl border-2 border-gray-300 px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+          {/* メモ */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-900">メモ</h2>
+              <p className="mt-0.5 text-xs text-slate-500">総合所感・気になった点など自由に記載してください。</p>
+            </div>
+            <div className="px-5 py-4">
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="書類・テストの所感を入力" className={textareaCls} />
+            </div>
           </div>
         </>
       ) : (
         <>
-          {/* ② 実施概要（面接系） */}
-          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-200">
-            <p className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-500">実施概要</p>
-            <div className={`grid gap-6 ${showFormat ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-2"}`}>
-              <div>
-                <p className="mb-2 text-sm font-bold text-gray-700">実施日</p>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  placeholder="開始時刻"
-                  className="mt-2 w-full rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
+          {/* 実施概要 */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-900">実施概要</h2>
+            </div>
+            <div className="px-5 py-4">
+              <div className={`grid gap-5 ${showFormat ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+                {/* 日時 */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-500">実施日時</p>
+                  <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} placeholder="開始時刻" className={inputCls} />
+                </div>
 
-              {showFormat && (
-                <div>
-                  <p className="mb-2 text-sm font-bold text-gray-700">形式</p>
-                  <div className="flex gap-2">
-                    {(["オンライン", "対面"] as InterviewFormat[]).map((fmt) => (
-                      <button
-                        key={fmt}
-                        onClick={() => setFormat(fmt)}
-                        className={`flex-1 rounded-xl border-2 py-2.5 text-sm font-bold transition-all ${
-                          format === fmt
-                            ? fmt === "オンライン"
-                              ? "border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200"
-                              : "border-green-600 bg-green-600 text-white shadow-md shadow-green-200"
-                            : "border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-1.5">
+                {/* 形式 */}
+                {showFormat && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-slate-500">面接形式</p>
+                    <div className="flex gap-2">
+                      {(["オンライン", "対面"] as InterviewFormat[]).map((fmt) => (
+                        <button
+                          key={fmt}
+                          onClick={() => setFormat(fmt)}
+                          aria-pressed={format === fmt}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                            format === fmt
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-slate-300 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
                           {fmt === "オンライン" ? (
-                            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                           ) : (
-                            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                           )}
                           {fmt}
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 総合評価 */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-500">総合評価</p>
+                  <div className="flex h-9 items-center">
+                    <StarRating value={rating} onChange={setRating} />
+                  </div>
+                  {rating && (
+                    <p className="text-xs text-slate-400">{rating}点 / 5点</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Zoom URL */}
+              {showFormat && format === "オンライン" && (
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <p className="mb-2 text-xs font-medium text-slate-500">Zoom ミーティング URL</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={zoomUrl}
+                      onChange={(e) => setZoomUrl(e.target.value)}
+                      placeholder="https://zoom.us/j/..."
+                      className={`flex-1 ${inputCls}`}
+                    />
+                    <button
+                      onClick={() => {
+                        const id = Math.floor(Math.random() * 9000000000) + 1000000000;
+                        const pw = Math.random().toString(36).substring(2, 8);
+                        setZoomUrl(`https://zoom.us/j/${id}?pwd=${pw}`);
+                      }}
+                      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 10l4.553-2.069A1 1 0 0121 8.868v6.264a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      URL を発行
+                    </button>
+                    {zoomUrl && (
+                      <a
+                        href={zoomUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        開く
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div>
-                <p className="mb-2 text-sm font-bold text-gray-700">総合評価</p>
-                <div className="pt-1">
-                  <StarRating value={rating} onChange={setRating} />
+              {/* 面接官 */}
+              {showInterviewers && (
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <p className="mb-2 text-xs font-medium text-slate-500">
+                    担当面接官
+                    {interviewers.length > 0 && (
+                      <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">{interviewers.length}名</span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {interviewerOptions.map((opt) => {
+                      const checked = interviewers.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          onClick={() => setInterviewers((prev) => checked ? prev.filter((i) => i !== opt) : [...prev, opt])}
+                          aria-pressed={checked}
+                          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                            checked
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-slate-300 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-
-            {/* Zoom URL */}
-            {showFormat && format === "オンライン" && (
-              <div className="mt-5 border-t border-gray-100 pt-5">
-                <p className="mb-2 text-sm font-bold text-gray-700">Zoom ミーティング URL</p>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={zoomUrl}
-                    onChange={(e) => setZoomUrl(e.target.value)}
-                    placeholder="https://zoom.us/j/..."
-                    className="flex-1 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-base font-medium text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                  <button
-                    onClick={() => {
-                      const id = Math.floor(Math.random() * 9000000000) + 1000000000;
-                      const pw = Math.random().toString(36).substring(2, 8);
-                      setZoomUrl(`https://zoom.us/j/${id}?pwd=${pw}`);
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl border-2 border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 hover:bg-blue-100 whitespace-nowrap"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.868v6.264a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    URL を発行
-                  </button>
-                  {zoomUrl && (
-                    <a
-                      href={zoomUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 rounded-xl border-2 border-gray-300 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      開く
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* 面接官 */}
-            {showInterviewers && (
-              <div className="mt-5 border-t border-gray-100 pt-5">
-                <p className="mb-2 text-sm font-bold text-gray-700">
-                  面接官
-                  {interviewers.length > 0 && (
-                    <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">{interviewers.length}名</span>
-                  )}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {interviewerOptions.map((opt) => {
-                    const checked = interviewers.includes(opt);
-                    return (
-                      <button
-                        key={opt}
-                        onClick={() =>
-                          setInterviewers((prev) =>
-                            checked ? prev.filter((i) => i !== opt) : [...prev, opt]
-                          )
-                        }
-                        className={`rounded-full border-2 px-4 py-1.5 text-sm font-semibold transition-colors ${
-                          checked
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* ③ 評価表 */}
-          <div className="rounded-2xl bg-white shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 pt-5 pb-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-gray-500">職種別評価項目</p>
-              <p className="mt-1 text-xs text-gray-500">職種：{candidatePosition}　／　5=秀、4=優、3=良、2=可、1=不可</p>
-            </div>
-            <table className="w-full">
-              <thead>
-                <tr className="border-y border-gray-200 bg-gray-50">
-                  <th className="px-6 py-3 text-left text-sm font-bold text-gray-700 w-48">評価項目</th>
-                  <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 w-44">評点</th>
-                  <th className="px-4 py-3 text-left text-sm font-bold text-gray-700">
-                    具体的なエピソード・根拠（事実ベース）
-                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {evaluations.map((item, i) => (
-                  <tr key={item.name} className="border-b border-gray-100 last:border-b-0">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-800 align-top">{item.name}</td>
-                    <td className="px-4 py-4 align-top">
-                      <div className="flex items-center justify-center gap-1">
-                        {GRADE_OPTIONS.map((g) => (
-                          <button
-                            key={g}
-                            onClick={() => updateEval(i, { grade: item.grade === g ? null : g })}
-                            title={GRADE_LABEL[g]}
-                            className={`h-10 w-10 rounded-lg border-2 text-base font-bold transition-all ${
-                              item.grade === g ? GRADE_ACTIVE[g] : GRADE_IDLE
-                            }`}
-                          >
-                            {g}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-top">
-                      <textarea
-                        value={item.episode}
-                        onChange={(e) => updateEval(i, { episode: e.target.value })}
-                        rows={2}
-                        placeholder="評価の根拠を具体的に記載してください。"
-                        className="w-full resize-none rounded-lg border-2 border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
-                      />
-                    </td>
-                  </tr>
-                ))}
-                <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-bold text-gray-800 align-top">
-                    合否判断の理由
-                    <span className="ml-1.5 rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">必須</span>
-                  </td>
-                  <td />
-                  <td className="px-4 py-3 align-top">
-                    <textarea
-                      value={decisionReason}
-                      onChange={(e) => setDecisionReason(e.target.value)}
-                      rows={3}
-                      placeholder="合否の判断理由を詳細に記載してください。"
-                      className="w-full resize-none rounded-lg border-2 border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {/* 評価表 */}
+          <EvaluationCard
+            title="評価"
+            subtitle={`職種：${candidatePosition}　5=秀、4=優、3=良、2=可、1=不可`}
+            evaluations={evaluations}
+            decisionReason={decisionReason}
+            onUpdateEval={updateEval}
+            onUpdateReason={setDecisionReason}
+          />
 
-          {/* ④ 面接主観メモ */}
-          <div className="rounded-2xl bg-white p-5 shadow-sm border border-gray-200">
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest text-gray-500">面接主観メモ</p>
-            <p className="mb-3 text-sm font-bold text-gray-700">自由記述</p>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={5}
-              placeholder="印象・雰囲気・気になった点など、数値化しにくい観察を自由に記載してください。"
-              className="w-full resize-none rounded-xl border-2 border-gray-300 px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+          {/* 面接メモ */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="text-sm font-semibold text-slate-900">面接メモ</h2>
+              <p className="mt-0.5 text-xs text-slate-500">数値化しにくい印象・雰囲気・気になった点を自由に記載してください。</p>
+            </div>
+            <div className="px-5 py-4">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={5}
+                placeholder="候補者の印象、コミュニケーションの様子、気になった点など…"
+                className={textareaCls}
+              />
+            </div>
           </div>
         </>
       )}
 
-      <div className="sticky bottom-4 flex justify-end">
+      {/* 自動保存インジケーター */}
+      <div className="flex items-center justify-end gap-2 pb-2">
         <div
-          className={`rounded-xl border px-4 py-2.5 text-sm font-bold shadow-sm transition-all ${
-            saveState === "saved"
-              ? "border-green-200 bg-green-50 text-green-700"
-              : saveState === "saving"
-                ? "border-blue-200 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-500"
+          role="status"
+          aria-live="polite"
+          className={`inline-flex items-center gap-1.5 text-xs transition-all ${
+            saveState === "saved" ? "text-blue-600" :
+            saveState === "saving" ? "text-slate-400" :
+            "text-slate-300"
           }`}
         >
-          {saveState === "saved" ? "✓ 自動保存しました" : saveState === "saving" ? "自動保存中..." : "入力内容は自動保存されます"}
+          {saveState === "saving" && (
+            <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          )}
+          {saveState === "saved" && (
+            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          {saveState === "saved" ? "自動保存しました" : saveState === "saving" ? "保存中..." : "自動保存"}
         </div>
       </div>
     </div>
   );
+}
+
+function InterviewSupportCard({
+  audioError,
+  audioProcessing,
+  audioSummary,
+  micPermission,
+  questions,
+  recordingSeconds,
+  recordingState,
+  onStartRecording,
+  onStopRecording,
+  onSummarizeRecording,
+}: {
+  audioError: string;
+  audioProcessing: boolean;
+  audioSummary: InterviewAudioSummary | null;
+  micPermission: PermissionState | "unsupported" | "unknown";
+  questions: InterviewQuestion[];
+  recordingSeconds: number;
+  recordingState: "idle" | "recording" | "stopped";
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onSummarizeRecording: () => void;
+}) {
+  const canSummarize = !!audioSummary?.dataUrl && recordingState !== "recording";
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">面接質問・録音</h2>
+          <p className="mt-0.5 text-xs text-slate-500">質問を見ながら録音し、停止後にAIで文字起こしと要約を保存します。</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            recordingState === "recording" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+          }`}>
+            {recordingState === "recording" ? `録音中 ${formatDuration(recordingSeconds)}` : `録音 ${formatDuration(audioSummary?.durationSeconds ?? recordingSeconds)}`}
+          </span>
+          {recordingState === "recording" ? (
+            <button
+              type="button"
+              onClick={onStopRecording}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              停止
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onStartRecording}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                micPermission === "denied"
+                  ? "border border-slate-300 bg-white text-slate-600 hover:bg-slate-100"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {micPermission === "denied" ? "マイク許可を確認" : "録音開始"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-0 divide-y divide-slate-100 lg:grid-cols-[minmax(0,1fr)_300px] lg:divide-x lg:divide-y-0">
+        <div className="px-5 py-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-slate-500">このステージの質問</p>
+            <span className="text-xs text-slate-400">{questions.length}件</span>
+          </div>
+          {questions.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              このステージ用の質問はまだありません。
+            </p>
+          ) : (
+            <ol className="space-y-2">
+              {questions.map((question, index) => (
+                <li key={question.id} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Q{index + 1}</span>
+                    {question.required && <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>}
+                    {question.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded bg-white px-1.5 py-0.5 text-[10px] text-slate-500 ring-1 ring-inset ring-slate-200">{tag}</span>
+                    ))}
+                  </div>
+                  <p className="text-sm leading-relaxed text-slate-800">{question.text}</p>
+                  {question.modelAnswer && (
+                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-blue-700">{question.modelAnswer}</p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <div className="px-5 py-4">
+          <p className="mb-2 text-xs font-semibold text-slate-500">録音データ</p>
+          {audioSummary?.dataUrl ? (
+            <audio controls src={audioSummary.dataUrl} className="w-full" />
+          ) : (
+            <div className="flex h-12 items-center rounded-lg bg-slate-50 px-3 text-xs text-slate-400">
+              録音データはありません。
+            </div>
+          )}
+          {audioSummary && (
+            <div className="mt-2 space-y-0.5 text-xs text-slate-400">
+              <p>{audioSummary.recordedAt}</p>
+              <p>{formatBytes(audioSummary.size)} / {formatDuration(audioSummary.durationSeconds)}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={onSummarizeRecording}
+            disabled={!canSummarize || audioProcessing}
+            className="mt-3 w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            {audioProcessing ? "AI要約中..." : "AIで要約して保存"}
+          </button>
+          {audioError && <p className="mt-2 text-xs text-red-600" role="alert">{audioError}</p>}
+          {micPermission === "denied" && (
+            <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-800">
+              Chromeならアドレスバー左のアイコンから「サイトの設定」を開き、マイクを許可に変更してください。変更後、このページで録音開始を押すと再開できます。
+            </div>
+          )}
+        </div>
+      </div>
+
+      {(audioSummary?.summary || audioSummary?.transcript) && (
+        <div className="border-t border-slate-100 px-5 py-4">
+          {audioSummary.summary && (
+            <div>
+              <p className="mb-1 text-xs font-semibold text-slate-500">AI要約</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{audioSummary.summary}</p>
+            </div>
+          )}
+          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+            <SummaryList title="評価できる点" items={audioSummary.highlights} />
+            <SummaryList title="懸念・確認点" items={audioSummary.concerns} />
+            <SummaryList title="次のアクション" items={audioSummary.nextActions} />
+          </div>
+          {audioSummary.transcript && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-blue-700">文字起こしを見る</summary>
+              <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+                {audioSummary.transcript}
+              </p>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+      <p className="mb-1.5 text-xs font-semibold text-slate-600">{title}</p>
+      {items.length === 0 ? (
+        <p className="text-xs text-slate-400">未生成</p>
+      ) : (
+        <ul className="space-y-1">
+          {items.map((item) => (
+            <li key={item} className="text-xs leading-relaxed text-slate-700">{item}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EvaluationCard({
+  title,
+  subtitle,
+  evaluations,
+  decisionReason,
+  onUpdateEval,
+  onUpdateReason,
+}: {
+  title: string;
+  subtitle: string;
+  evaluations: EvaluationItem[];
+  decisionReason: string;
+  onUpdateEval: (i: number, patch: Partial<EvaluationItem>) => void;
+  onUpdateReason: (v: string) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {evaluations.map((item, i) => (
+          <div key={item.name} className="grid grid-cols-[180px_auto_1fr] items-start gap-4 px-5 py-4">
+            <div className="pt-1">
+              <p className="text-sm font-medium text-slate-800">{item.name}</p>
+              {item.grade && (
+                <p className="mt-0.5 text-xs text-slate-400">{GRADE_LABEL[item.grade]}</p>
+              )}
+            </div>
+            <div className="flex gap-1 pt-0.5">
+              {GRADE_OPTIONS.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => onUpdateEval(i, { grade: item.grade === g ? null : g })}
+                  aria-label={`${item.name}: ${GRADE_LABEL[g]}（${g}点）`}
+                  aria-pressed={item.grade === g}
+                  className={`h-8 w-8 rounded-md border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                    item.grade === g ? GRADE_ACTIVE[g] : GRADE_IDLE
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={item.episode}
+              onChange={(e) => onUpdateEval(i, { episode: e.target.value })}
+              rows={2}
+              placeholder="評価の根拠を具体的に記載（必須）"
+              aria-label={`${item.name} のコメント`}
+              className={textareaCls}
+            />
+          </div>
+        ))}
+        <div className="grid grid-cols-[180px_auto_1fr] items-start gap-4 bg-slate-50/60 px-5 py-4">
+          <div className="pt-1">
+            <p className="text-sm font-semibold text-slate-800">合否判断の理由</p>
+            <span className="mt-0.5 inline-block rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">必須</span>
+          </div>
+          <div />
+          <textarea
+            value={decisionReason}
+            onChange={(e) => onUpdateReason(e.target.value)}
+            rows={3}
+            placeholder="合否の判断理由を詳細に記載してください。"
+            className={textareaCls}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatTimestamp(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("録音データの読み込みに失敗しました。"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function dataUrlToBlob(dataUrl: string) {
+  const response = await fetch(dataUrl);
+  return response.blob();
 }

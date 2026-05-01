@@ -19,6 +19,10 @@ export type CandidateTask = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+function recordMatchesStage(record: Candidate["interviewRecords"][number], stage: InterviewStage): boolean {
+  return record.stageId ? record.stageId === stage.id : record.stageName === stage.name;
+}
+
 export function getTaskForCandidate(
   candidate: Candidate,
   interviewStages: InterviewStage[]
@@ -29,7 +33,7 @@ export function getTaskForCandidate(
 
   // 面接記録を見て、最初に「通過」していないステージを次のタスクとする
   for (const stage of sorted) {
-    const record = candidate.interviewRecords.find((r) => r.stageName === stage.name);
+    const record = candidate.interviewRecords.find((r) => recordMatchesStage(r, stage));
     if (!record || record.result !== "通過") {
       const needsInterviewer = stageNeedsInterviewer(stage.name);
       const interviewers = record?.interviewers ?? [];
@@ -125,7 +129,7 @@ function getPreviousPassedDate(candidate: Candidate, sorted: InterviewStage[], s
   if (currentIndex <= 0) return undefined;
 
   const previousStage = sorted[currentIndex - 1];
-  return candidate.interviewRecords.find((record) => record.stageName === previousStage.name && record.result === "通過")?.date;
+  return candidate.interviewRecords.find((record) => recordMatchesStage(record, previousStage) && record.result === "通過")?.date;
 }
 
 function getDaysWaiting(dateText: string): number {

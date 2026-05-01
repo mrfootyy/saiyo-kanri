@@ -27,6 +27,7 @@ Set these in Vercel Project Settings > Environment Variables for Production, Pre
 | `OPENAI_API_KEY` | Yes | AI candidate summary and resume extraction |
 | `OPENAI_MODEL` | No | Candidate summary model. Defaults to `gpt-5.4-mini` |
 | `OPENAI_RESUME_MODEL` | No | Resume extraction model. Defaults to `gpt-4o-mini` |
+| `OPENAI_TRANSCRIPTION_MODEL` | No | Interview recording transcription model. Defaults to `gpt-4o-mini-transcribe` |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase publishable/anon key |
 | `SLACK_WEBHOOK_URL` | No | Slack incoming webhook for notifications |
@@ -43,6 +44,23 @@ Run `supabase/recruitment_state.sql` in the Supabase SQL editor before using per
 4. Deploy.
 
 The project uses Next.js Route Handlers for AI, Slack, and Supabase APIs, so it should be deployed as a normal Vercel Next.js app rather than a static export.
+
+## Run with Docker
+
+Build and run the production container:
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:3000](http://localhost:3000). The compose file reads `.env.local`, so create it from `.env.example` first.
+
+To run without Compose:
+
+```bash
+docker build -t saiyo-kanri .
+docker run --env-file .env.local -p 3000:3000 saiyo-kanri
+```
 
 ## Production Notes
 

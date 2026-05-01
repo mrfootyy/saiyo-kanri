@@ -11,11 +11,12 @@ import {
   InterviewRecord,
   InterviewRating,
   InterviewResult,
+  SlackChannelConfig,
   SlackNotification,
 } from "../../types";
 import { INTERVIEWER_OPTIONS, POSITION_OPTIONS, INTERVIEW_FORMAT_OPTIONS } from "../../constants";
 import { ExtractedInfo, extractFromFile, isExtractError } from "../../extractFromFile";
-import { deriveCandidateStatusFromFlow } from "../../statusUtils";
+import { deriveCandidateStatusFromFlow, getStageIndexForStatus, getStatusForStageName, isTerminalStatus } from "../../statusUtils";
 import StatusBadge from "../../components/StatusBadge";
 import DocumentUpload from "../../components/DocumentUpload";
 import StepFlowBar from "../../components/StepFlowBar";
@@ -25,9 +26,9 @@ const STATUS_OPTIONS: CandidateStatus[] = ["応募受付", "内定", "不採用"
 const RESULT_OPTIONS: InterviewResult[] = ["通過", "保留", "不採用"];
 
 const RESULT_COLORS: Record<InterviewResult, string> = {
-  通過: "bg-green-100 text-green-700",
-  保留: "bg-yellow-100 text-yellow-700",
-  不採用: "bg-red-100 text-red-600",
+  通過: "bg-blue-100 text-blue-700",
+  保留: "bg-blue-50 text-blue-700",
+  不採用: "bg-slate-100 text-slate-700",
 };
 
 type Tab = "基本情報" | "書類" | "評価" | "質問" | "履歴";
@@ -40,15 +41,17 @@ function StarRating({
   onChange?: (v: InterviewRating) => void;
 }) {
   return (
-    <div className="flex gap-0.5">
+    <div className="flex gap-0.5" role="group" aria-label="評価">
       {([1, 2, 3, 4, 5] as InterviewRating[]).map((n) => (
         <button
           key={n}
           type="button"
           onClick={() => onChange?.(n)}
+          aria-label={`${n}点`}
+          aria-pressed={value !== null && n <= value}
           className={`text-lg leading-none transition-colors ${
-            value !== null && n <= value ? "text-yellow-400" : "text-gray-200"
-          } ${onChange ? "hover:text-yellow-300 cursor-pointer" : "cursor-default"}`}
+            value !== null && n <= value ? "text-blue-500" : "text-slate-200"
+          } ${onChange ? "cursor-pointer hover:text-blue-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400" : "cursor-default"}`}
         >
           ★
         </button>
@@ -60,14 +63,14 @@ function StarRating({
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, interviewStages, interviewers: interviewerOptions, interviewQuestions } =
+  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, interviewStages, interviewers: interviewerOptions, interviewQuestions, slackChannelConfig } =
     useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
 
   if (!candidate) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-400 p-6">
+      <div className="flex flex-col items-center justify-center h-full p-6 text-slate-400">
         <p className="text-sm">応募者が見つかりません。</p>
         <Link href="/recruitment/candidates" className="mt-3 text-xs text-blue-600 hover:underline">
           ← 一覧に戻る
@@ -76,7 +79,21 @@ export default function CandidateDetailPage() {
     );
   }
 
-  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} interviewStages={interviewStages} interviewerOptions={interviewerOptions} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} interviewQuestions={interviewQuestions} />;
+  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} interviewStages={interviewStages} interviewerOptions={interviewerOptions} slackChannelConfig={slackChannelConfig} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} interviewQuestions={interviewQuestions} />;
+}
+
+const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+const selectCls = "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+const labelCls = "mb-1 block text-xs font-medium text-slate-500";
+
+function SelectArrow() {
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
+      <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
 }
 
 function CandidateDetail({
@@ -85,6 +102,7 @@ function CandidateDetail({
   allEmail,
   interviewStages,
   interviewerOptions,
+  slackChannelConfig,
   onUpdate,
   onAddSlack,
   interviewQuestions,
@@ -94,6 +112,7 @@ function CandidateDetail({
   allEmail: ReturnType<typeof Array.prototype.filter>;
   interviewStages: import("../../types").InterviewStage[];
   interviewerOptions: string[];
+  slackChannelConfig: SlackChannelConfig;
   onUpdate: (c: Candidate) => void;
   onAddSlack: (n: SlackNotification[]) => void;
   interviewQuestions: import("../../types").InterviewQuestion[];
@@ -101,7 +120,6 @@ function CandidateDetail({
   const [activeTab, setActiveTab] = useState<Tab>("基本情報");
   const [saved, setSaved] = useState(false);
 
-  // 基本情報
   const [name, setName] = useState(candidate.name);
   const [nameKana, setNameKana] = useState(candidate.nameKana ?? "");
   const [position, setPosition] = useState(candidate.position);
@@ -114,13 +132,14 @@ function CandidateDetail({
   const [interviewers, setInterviewers] = useState<string[]>(candidate.interviewers);
   const [memo, setMemo] = useState(candidate.memo);
   const [tags, setTags] = useState<string[]>(candidate.tags ?? []);
-  const [tagInput, setTagInput] = useState("");
   const [source, setSource] = useState(candidate.source ?? "");
   const [rejectionReason, setRejectionReason] = useState(candidate.rejectionReason ?? "");
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>(candidate.assignedQuestions ?? []);
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
   const [questionStageFilter, setQuestionStageFilter] = useState("すべて");
+  const [candidateQuestionStageFilter, setCandidateQuestionStageFilter] = useState("すべて");
+  const [questionSearch, setQuestionSearch] = useState("");
 
-  // 書類
   const [resumeFile, setResumeFile] = useState<DocumentFile | undefined>(candidate.resumeFile);
   const [cvFile, setCvFile] = useState<DocumentFile | undefined>(candidate.cvFile);
   const [portfolioUrl, setPortfolioUrl] = useState(candidate.portfolioUrl ?? "");
@@ -130,7 +149,6 @@ function CandidateDetail({
   const [extractError, setExtractError] = useState<string | null>(null);
 
   const records = candidate.interviewRecords;
-
   const candidateSlacks = allSlack.filter((s) => s.candidateId === candidate.id);
 
   function getToday() {
@@ -252,7 +270,7 @@ function CandidateDetail({
         candidateId: candidate.id,
         candidateName: candidate.name,
         sentAt: timestamp,
-        channel: "#採用チャンネル",
+        channel: slackChannelConfig.statusChange,
         message: `${candidate.name}さんのステータスが「${candidate.status}」から「${syncedStatus}」に更新されました。`,
       });
     }
@@ -273,36 +291,82 @@ function CandidateDetail({
     extracted.companies?.length
   );
   const syncedStatus = deriveCandidateStatusFromFlow(records, interviewStages, status);
+  const questionById = new Map(interviewQuestions.map((q) => [q.id, q]));
+  const assignedQuestionItems = assignedQuestions
+    .map((id) => questionById.get(id))
+    .filter((q): q is import("../../types").InterviewQuestion => Boolean(q));
+  const flowStageNames = new Set(interviewStages.map((stage) => stage.name));
+  const requiredQuestionItems = interviewQuestions.filter((q) => q.required && flowStageNames.has(q.stage));
+  const candidateQuestionItems = [
+    ...requiredQuestionItems,
+    ...assignedQuestionItems.filter((q) => !requiredQuestionItems.some((required) => required.id === q.id)),
+  ];
+  const candidateQuestionStages = ["すべて", ...Array.from(new Set(candidateQuestionItems.map((q) => q.stage)))];
+  const visibleCandidateQuestionItems = candidateQuestionItems.filter((q) =>
+    candidateQuestionStageFilter === "すべて" || q.stage === candidateQuestionStageFilter
+  );
+  const questionStages = ["すべて", ...Array.from(new Set(interviewQuestions.map((q) => q.stage)))];
+  const filteredQuestions = interviewQuestions.filter((q) => {
+    const matchesStage = questionStageFilter === "すべて" || q.stage === questionStageFilter;
+    const query = questionSearch.trim().toLowerCase();
+    const matchesSearch =
+      query === "" ||
+      q.text.toLowerCase().includes(query) ||
+      q.tags.some((tag) => tag.toLowerCase().includes(query));
+    return matchesStage && matchesSearch;
+  });
+
+  const tabs: Tab[] = ["基本情報", "書類", "評価", "質問", "履歴"];
+  const sortedStages = [...interviewStages].sort((a, b) => a.order - b.order);
+  const currentStageIndex = getStageIndexForStatus(syncedStatus, sortedStages);
+  const currentStage = currentStageIndex >= 0 ? sortedStages[currentStageIndex] : null;
+  const showInterviewModeButton =
+    currentStage &&
+    !isTerminalStatus(syncedStatus) &&
+    getStatusForStageName(currentStage.name) !== "書類選考";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full flex-col">
       {/* ページヘッダー */}
-      <div className="border-b border-gray-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-6 py-5">
         <Link
           href="/recruitment/candidates"
-          className="mb-3 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+          className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
         >
-          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
           </svg>
           応募者一覧
         </Link>
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{candidate.name}</h1>
+              <h1 className="text-xl font-semibold tracking-tight text-slate-900">{candidate.name}</h1>
               <StatusBadge status={syncedStatus} />
             </div>
-            <p className="mt-1 text-sm text-gray-500">{candidate.position} · 応募日: {candidate.appliedAt}</p>
+            <p className="mt-1 text-sm text-slate-500">{candidate.position} · 応募日: {candidate.appliedAt}</p>
           </div>
           <div className="flex items-center gap-2">
+            {showInterviewModeButton && (
+              <Link
+                href={`/recruitment/candidates/${candidate.id}/stages/${currentStage.id}/interview`}
+                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                面接モード
+              </Link>
+            )}
             <button
               onClick={handleSave}
-              className={`rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all ${
-                saved ? "bg-green-500 shadow-green-100" : "bg-blue-600 hover:bg-blue-700 shadow-blue-100"
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                saved ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
-              {saved ? "✓ 保存しました" : "保存する"}
+              {saved && (
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {saved ? "保存しました" : "保存する"}
             </button>
           </div>
         </div>
@@ -312,26 +376,28 @@ function CandidateDetail({
       <StepFlowBar stages={interviewStages} records={records} manualStatus={syncedStatus} candidateId={candidate.id} />
 
       {/* タブ */}
-      <div className="flex border-b border-gray-100 bg-white px-6">
-        {(["基本情報", "書類", "評価", "質問", "履歴"] as Tab[]).map((tab) => (
+      <div className="flex border-b border-slate-100 bg-white px-6" role="tablist" aria-label="候補者情報タブ">
+        {tabs.map((tab) => (
           <button
             key={tab}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
-            className={`mr-5 border-b-2 py-3 text-sm font-semibold transition-colors ${
+            className={`mr-5 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-[-2px] ${
               activeTab === tab
                 ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-400 hover:text-gray-700"
+                : "border-transparent text-slate-400 hover:text-slate-700"
             }`}
           >
             {tab}
             {tab === "書類" && extracting && (
-              <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+              <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" aria-hidden="true" />
             )}
             {tab === "書類" && hasExtracted && !extracting && (
-              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
             )}
             {tab === "書類" && extractError && !extracting && (
-              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+              <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-slate-500" aria-hidden="true" />
             )}
           </button>
         ))}
@@ -344,90 +410,101 @@ function CandidateDetail({
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">氏名</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                <input type="text" value={nameKana} onChange={(e) => setNameKana(e.target.value)}
+                <label className={labelCls}>氏名</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+                <input
+                  type="text"
+                  value={nameKana}
+                  onChange={(e) => setNameKana(e.target.value)}
                   placeholder="ふりがな"
-                  className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                  className={`mt-1.5 ${inputCls}`}
+                />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">年齢</label>
+                <label className={labelCls}>年齢</label>
                 <div className="relative">
-                  <input type="number" min="15" max="80" value={age} onChange={(e) => setAge(e.target.value)}
+                  <input
+                    type="number"
+                    min="15"
+                    max="80"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
                     placeholder="28"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-8 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">歳</span>
+                    className={inputCls}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">歳</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">メールアドレス</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <label className={labelCls}>メールアドレス</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">電話番号</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  placeholder="090-0000-0000"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                <label className={labelCls}>電話番号</label>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="090-0000-0000" className={inputCls} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">志望職種</label>
-                <select value={POSITION_OPTIONS.includes(position as any) ? position : "その他"}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  {POSITION_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <label className={labelCls}>志望職種</label>
+                <div className="relative">
+                  <select
+                    value={POSITION_OPTIONS.includes(position as any) ? position : "その他"}
+                    onChange={(e) => setPosition(e.target.value)}
+                    className={selectCls}
+                  >
+                    {POSITION_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <SelectArrow />
+                </div>
                 {!POSITION_OPTIONS.includes(position as any) && (
-                  <input type="text" value={position} onChange={(e) => setPosition(e.target.value)}
-                    placeholder="職種を入力"
-                    className="mt-1.5 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                  <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="職種を入力" className={`mt-1.5 ${inputCls}`} />
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">ステータス</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value as CandidateStatus)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <label className={labelCls}>ステータス</label>
+                <div className="relative">
+                  <select value={status} onChange={(e) => setStatus(e.target.value as CandidateStatus)} className={selectCls}>
+                    {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <SelectArrow />
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">スキル</label>
+                <label className={labelCls}>スキル</label>
                 <input
                   type="text"
                   value={skills.join(", ")}
                   onChange={(e) => setSkills(e.target.value.split(",").map((v) => v.trim()).filter(Boolean))}
                   placeholder="React, TypeScript, Figma"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className={inputCls}
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-gray-400">経験企業・在籍年数</label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className={labelCls}>経験企業・在籍年数</label>
                 <button
                   type="button"
                   onClick={() => setCompanies((prev) => [...prev, { name: "", years: "" }])}
-                  className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   追加
                 </button>
               </div>
               {companies.length === 0 ? (
-                <p className="text-xs text-gray-400 py-2">企業が登録されていません。</p>
+                <p className="py-2 text-xs text-slate-400">企業が登録されていません。</p>
               ) : (
                 <div className="space-y-2">
                   {companies.map((c, i) => (
@@ -437,7 +514,7 @@ function CandidateDetail({
                         value={c.name}
                         onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, name: e.target.value } : item))}
                         placeholder="株式会社サンプル"
-                        className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        className={`flex-1 ${inputCls}`}
                       />
                       <div className="relative w-24 flex-shrink-0">
                         <input
@@ -447,17 +524,18 @@ function CandidateDetail({
                           value={c.years}
                           onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, years: e.target.value } : item))}
                           placeholder="3"
-                          className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-7 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                          className={inputCls}
                         />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">年</span>
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">年</span>
                       </div>
                       <button
                         type="button"
                         onClick={() => setCompanies((prev) => prev.filter((_, idx) => idx !== i))}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        aria-label="この企業を削除"
+                        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                       >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
@@ -467,57 +545,19 @@ function CandidateDetail({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">メモ</label>
-              <textarea value={memo} onChange={(e) => setMemo(e.target.value)} rows={3}
+              <label className={labelCls}>メモ</label>
+              <textarea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                rows={3}
                 placeholder="メモを入力"
-                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">応募ソース</label>
-                <input type="text" value={source} onChange={(e) => setSource(e.target.value)}
-                  placeholder="Indeed、Wantedly、エージェントなど"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">不採用・辞退理由</label>
-                <input type="text" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="例：スキル不足、条件不一致、他社内定"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-              </div>
+                className={`resize-none ${inputCls}`}
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">タグ</label>
-              <div className="flex gap-2">
-                <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && tagInput.trim()) {
-                      e.preventDefault();
-                      const t = tagInput.trim();
-                      if (!tags.includes(t)) setTags((prev) => [...prev, t]);
-                      setTagInput("");
-                    }
-                  }}
-                  placeholder="タグを入力してEnter"
-                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                <button type="button" onClick={() => {
-                  const t = tagInput.trim();
-                  if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
-                  setTagInput("");
-                }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">追加</button>
-              </div>
-              {tags.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {tags.map((t) => (
-                    <span key={t} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                      {t}
-                      <button onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="text-blue-400 hover:text-blue-700">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
+              <label className={labelCls}>応募ソース</label>
+              <input type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="Indeed、Wantedly、エージェントなど" className={inputCls} />
             </div>
           </div>
         )}
@@ -538,8 +578,8 @@ function CandidateDetail({
                 onChange={handleCvUpload}
               />
               {extracting && (
-                <div className="flex items-center gap-2 rounded-lg bg-orange-50 px-3 py-2.5 text-xs text-orange-700">
-                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
@@ -547,19 +587,19 @@ function CandidateDetail({
                 </div>
               )}
               {!extracting && extractError && (
-                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
-                  <svg className="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
+                  <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {extractError}
                 </div>
               )}
               {!extracting && extracted && (
-                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-xs">
-                  <p className="font-medium text-green-800 mb-2">読み取り結果（基本情報に自動反映済み）</p>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs">
+                  <p className="mb-2 font-semibold text-blue-800">読み取り結果（基本情報に自動反映済み）</p>
                   {hasExtracted ? (
                     <>
-                      <div className="space-y-1 text-green-700">
+                      <div className="space-y-1 text-blue-700">
                         {extracted.email && <p>メールアドレス: <span className="font-medium">{extracted.email}</span></p>}
                         {extracted.phone && <p>電話番号: <span className="font-medium">{extracted.phone}</span></p>}
                         {extracted.age && <p>年齢: <span className="font-medium">{extracted.age}歳</span></p>}
@@ -572,31 +612,41 @@ function CandidateDetail({
                           </span></p>
                         )}
                       </div>
-                      <button onClick={applyExtracted}
-                        className="mt-3 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
+                      <button
+                        onClick={applyExtracted}
+                        className="mt-3 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                      >
                         基本情報を確認する →
                       </button>
                     </>
                   ) : (
-                    <p className="text-gray-500">自動読み取りできませんでした。基本情報タブから手動で入力してください。</p>
+                    <p className="text-slate-500">自動読み取りできませんでした。基本情報タブから手動で入力してください。</p>
                   )}
                 </div>
               )}
             </div>
 
             <div className="space-y-3">
-              <p className="text-xs font-medium text-gray-500">ポートフォリオ</p>
+              <p className="text-xs font-medium text-slate-500">ポートフォリオ</p>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">URL</label>
+                <label className={labelCls}>URL</label>
                 <div className="flex gap-2">
-                  <input type="url" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)}
+                  <input
+                    type="url"
+                    value={portfolioUrl}
+                    onChange={(e) => setPortfolioUrl(e.target.value)}
                     placeholder="https://example.com"
-                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                    className={`flex-1 ${inputCls}`}
+                  />
                   {portfolioUrl.trim() && /^https?:\/\//i.test(portfolioUrl.trim()) && (
-                    <a href={portfolioUrl.trim()} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 hover:bg-blue-100 whitespace-nowrap">
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    <a
+                      href={portfolioUrl.trim()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 whitespace-nowrap transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
                       開く
                     </a>
@@ -604,7 +654,7 @@ function CandidateDetail({
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-400 mb-1">ファイル（PDF・画像）</label>
+                <label className={labelCls}>ファイル（PDF・画像）</label>
                 <DocumentUpload label="" file={portfolioFile} onChange={setPortfolioFile} />
               </div>
             </div>
@@ -615,56 +665,54 @@ function CandidateDetail({
         {activeTab === "評価" && (
           <div className="space-y-4">
             {records.length === 0 ? (
-              <p className="text-sm text-gray-400">まだ面接記録がありません。</p>
+              <p className="text-sm text-slate-400">まだ面接記録がありません。</p>
             ) : (
               records.map((r) => (
-                <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-bold text-gray-900">{r.stageName}</span>
-                      <span className="ml-2 text-xs text-gray-400">{r.date}{r.time ? ` ${r.time}` : ""}</span>
+                      <span className="text-sm font-semibold text-slate-900">{r.stageName}</span>
+                      <span className="ml-2 text-xs text-slate-400">{r.date}{r.time ? ` ${r.time}` : ""}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {r.result && (
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          r.result === "通過" ? "bg-green-100 text-green-700" :
-                          r.result === "保留" ? "bg-yellow-100 text-yellow-700" :
-                          "bg-red-100 text-red-600"
-                        }`}>{r.result}</span>
+                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-semibold ${RESULT_COLORS[r.result]}`}>{r.result}</span>
                       )}
                       {r.rating && (
-                        <span className="text-sm text-yellow-400">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                        <span className="text-sm text-blue-500" aria-label={`評価${r.rating}点`}>
+                          {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
+                        </span>
                       )}
                     </div>
                   </div>
                   {r.interviewers.length > 0 && (
-                    <p className="mb-2 text-xs text-gray-500">面接官: {r.interviewers.join(", ")}</p>
+                    <p className="mb-2 text-xs text-slate-500">面接官: {r.interviewers.join(", ")}</p>
                   )}
                   {r.evaluations && r.evaluations.length > 0 && (
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-gray-100 bg-gray-50">
-                            <th className="px-3 py-2 text-left font-semibold text-gray-600">評価項目</th>
-                            <th className="w-16 px-3 py-2 text-center font-semibold text-gray-600">評点</th>
-                            <th className="px-3 py-2 text-left font-semibold text-gray-600">コメント</th>
+                          <tr className="border-b border-slate-100 bg-slate-50">
+                            <th className="px-3 py-2 text-left font-semibold text-slate-600">評価項目</th>
+                            <th className="w-16 px-3 py-2 text-center font-semibold text-slate-600">評点</th>
+                            <th className="px-3 py-2 text-left font-semibold text-slate-600">コメント</th>
                           </tr>
                         </thead>
                         <tbody>
                           {r.evaluations.map((ev) => (
-                            <tr key={ev.name} className="border-b border-gray-50 last:border-b-0">
-                              <td className="px-3 py-2 font-medium text-gray-700">{ev.name}</td>
+                            <tr key={ev.name} className="border-b border-slate-50 last:border-b-0">
+                              <td className="px-3 py-2 font-medium text-slate-700">{ev.name}</td>
                               <td className="px-3 py-2 text-center">
                                 {ev.grade ? (
                                   <span className={`inline-block rounded px-1.5 py-0.5 font-bold text-white ${
-                                    ev.grade === "5" ? "bg-violet-600" :
-                                    ev.grade === "4" ? "bg-green-600" :
-                                    ev.grade === "3" ? "bg-blue-600" :
-                                    ev.grade === "2" ? "bg-amber-500" : "bg-red-600"
+                                    ev.grade === "5" ? "bg-blue-700" :
+                                    ev.grade === "4" ? "bg-blue-600" :
+                                    ev.grade === "3" ? "bg-blue-500" :
+                                    ev.grade === "2" ? "bg-blue-400" : "bg-slate-500"
                                   }`}>{ev.grade}</span>
-                                ) : <span className="text-gray-300">—</span>}
+                                ) : <span className="text-slate-300">—</span>}
                               </td>
-                              <td className="px-3 py-2 text-gray-600">{ev.episode || "—"}</td>
+                              <td className="px-3 py-2 text-slate-600">{ev.episode || "—"}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -672,12 +720,12 @@ function CandidateDetail({
                     </div>
                   )}
                   {r.decisionReason && (
-                    <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700">
-                      <span className="font-semibold text-gray-600">合否判断の理由：</span>{r.decisionReason}
+                    <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <span className="font-semibold text-slate-600">合否判断の理由：</span>{r.decisionReason}
                     </div>
                   )}
                   {r.notes && (
-                    <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                    <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
                       <span className="font-semibold">メモ：</span>{r.notes}
                     </div>
                   )}
@@ -690,49 +738,162 @@ function CandidateDetail({
         {/* ── 質問 ── */}
         {activeTab === "質問" && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-500">質問バンクからこの候補者の面接で使う質問を選択できます。</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {["すべて", ...Array.from(new Set(interviewQuestions.map((q) => q.stage)))].map((stage) => (
-                <button key={stage} onClick={() => setQuestionStageFilter(stage)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${questionStageFilter === stage ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                  {stage}
-                </button>
-              ))}
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">この候補者用の質問リスト</p>
+                <p className="mt-0.5 text-xs text-slate-500">質問リスト全体から、この候補者の面接で使う質問を選びます。必須質問は自動で表示されます。</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuestionPicker((v) => !v)}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+              >
+                {showQuestionPicker ? "選択を閉じる" : "質問を追加する"}
+              </button>
             </div>
-            {interviewQuestions.filter((q) => questionStageFilter === "すべて" || q.stage === questionStageFilter).map((q) => {
-              const assigned = assignedQuestions.includes(q.id);
-              return (
-                <div key={q.id} className={`rounded-xl border p-4 transition-colors ${assigned ? "border-blue-300 bg-blue-50" : "border-gray-200 bg-white"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap gap-1 mb-1">
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">{q.stage}</span>
-                        {q.tags.map((t) => <span key={t} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500">{t}</span>)}
+
+            {interviewQuestions.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center">
+                <p className="text-sm text-slate-400">質問リストに質問がありません。</p>
+                <Link href="/recruitment/questions" className="mt-3 inline-block text-xs font-semibold text-blue-600 hover:text-blue-800">
+                  質問リストで作成する →
+                </Link>
+              </div>
+            )}
+
+            {candidateQuestionItems.length === 0 && interviewQuestions.length > 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center">
+                <p className="text-sm font-medium text-slate-500">まだ質問が選択されていません。</p>
+                <button
+                  type="button"
+                  onClick={() => setShowQuestionPicker(true)}
+                  className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                >
+                  質問を追加する
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {candidateQuestionStages.length > 2 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {candidateQuestionStages.map((stage) => (
+                      <button
+                        key={stage}
+                        type="button"
+                        aria-pressed={candidateQuestionStageFilter === stage}
+                        onClick={() => setCandidateQuestionStageFilter(stage)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                          candidateQuestionStageFilter === stage
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        {stage}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {visibleCandidateQuestionItems.map((q, index) => {
+                  const required = requiredQuestionItems.some((item) => item.id === q.id);
+                  return (
+                    <div key={q.id} className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">Q{index + 1}</span>
+                            {required && (
+                              <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">必須</span>
+                            )}
+                            <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">{q.stage}</span>
+                            {q.tags.map((t) => <span key={t} className="rounded-md bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-inset ring-slate-200">{t}</span>)}
+                          </div>
+                          <p className="text-sm font-medium leading-relaxed text-slate-900">{q.text}</p>
+                          {q.modelAnswer && (
+                            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-blue-700">{q.modelAnswer}</p>
+                          )}
+                        </div>
+                        {required ? (
+                          <span className="flex-shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700">自動表示</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setAssignedQuestions((prev) => prev.filter((id) => id !== q.id))}
+                            className="flex-shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            外す
+                          </button>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-800">{q.text}</p>
                     </div>
-                    <button
-                      onClick={() => setAssignedQuestions((prev) =>
-                        assigned ? prev.filter((id) => id !== q.id) : [...prev, q.id]
-                      )}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors flex-shrink-0 ${
-                        assigned ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      {assigned ? "✓ 選択中" : "選択"}
-                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {showQuestionPicker && interviewQuestions.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">質問リストから選ぶ</p>
+                  <span className="text-xs font-medium text-slate-400">{candidateQuestionItems.length}件表示中（必須含む）</span>
+                </div>
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="search"
+                    value={questionSearch}
+                    onChange={(e) => setQuestionSearch(e.target.value)}
+                    placeholder="質問文・タグで検索"
+                    className={`min-w-0 flex-1 ${inputCls}`}
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {questionStages.map((stage) => (
+                      <button
+                        key={stage}
+                        type="button"
+                        aria-pressed={questionStageFilter === stage}
+                        onClick={() => setQuestionStageFilter(stage)}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${questionStageFilter === stage ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                      >
+                        {stage}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-            {interviewQuestions.length === 0 && (
-              <p className="text-sm text-gray-400">質問バンクに質問がありません。</p>
-            )}
-            {assignedQuestions.length > 0 && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <p className="text-xs font-bold text-blue-800 mb-2">選択中: {assignedQuestions.length}件</p>
-                <button onClick={() => { handleSave(); }}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">保存する</button>
+                <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                  {filteredQuestions.length === 0 ? (
+                    <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">条件に一致する質問がありません。</p>
+                  ) : filteredQuestions.map((q) => {
+                    const assigned = assignedQuestions.includes(q.id);
+                    return (
+                      <div key={q.id} className={`rounded-xl border p-4 transition-colors ${assigned ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex flex-wrap gap-1">
+                              {q.required && <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800">必須</span>}
+                              <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">{q.stage}</span>
+                              {q.tags.map((t) => <span key={t} className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">{t}</span>)}
+                            </div>
+                            <p className="text-sm text-slate-800">{q.text}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setAssignedQuestions((prev) =>
+                              assigned ? prev.filter((id) => id !== q.id) : [...prev, q.id]
+                            )}
+                            disabled={q.required}
+                            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                              q.required
+                                ? "cursor-default border border-blue-200 bg-blue-50 text-blue-700"
+                                : assigned ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-slate-300 text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {q.required ? "自動表示" : assigned ? "選択中" : "追加"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -741,49 +902,49 @@ function CandidateDetail({
         {/* ── 履歴 ── */}
         {activeTab === "履歴" && (
           <div className="space-y-5">
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">
-                Slack通知履歴 <span className="font-normal text-gray-400">({candidateSlacks.length}件)</span>
+            <section aria-labelledby="slack-history-heading">
+              <p id="slack-history-heading" className="mb-2 text-xs font-medium text-slate-500">
+                Slack通知履歴 <span className="font-normal text-slate-400">({candidateSlacks.length}件)</span>
               </p>
               {candidateSlacks.length === 0 ? (
-                <p className="text-xs text-gray-400">通知履歴がありません。</p>
+                <p className="text-xs text-slate-400">通知履歴がありません。</p>
               ) : (
                 <div className="space-y-2">
                   {candidateSlacks.map((n) => (
-                    <div key={n.id} className="rounded-lg bg-gray-50 px-3 py-2 text-xs">
-                      <div className="flex items-center justify-between text-gray-400 mb-0.5">
+                    <div key={n.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                      <div className="mb-0.5 flex items-center justify-between text-slate-400">
                         <span>{n.channel}</span><span>{n.sentAt}</span>
                       </div>
-                      <p className="text-gray-700">{n.message}</p>
+                      <p className="text-slate-700">{n.message}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
 
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">
-                メール履歴 <span className="font-normal text-gray-400">({allEmail.length}件)</span>
+            <section aria-labelledby="email-history-heading">
+              <p id="email-history-heading" className="mb-2 text-xs font-medium text-slate-500">
+                メール履歴 <span className="font-normal text-slate-400">({allEmail.length}件)</span>
               </p>
               {allEmail.length === 0 ? (
-                <p className="text-xs text-gray-400">メール履歴がありません。</p>
+                <p className="text-xs text-slate-400">メール履歴がありません。</p>
               ) : (
                 <div className="space-y-2">
                   {allEmail.map((e: any) => (
-                    <div key={e.id} className="rounded-lg bg-gray-50 px-3 py-2 text-xs">
-                      <div className="flex items-center justify-between text-gray-400 mb-0.5">
-                        <span className={`font-medium ${e.direction === "送信" ? "text-blue-600" : "text-green-600"}`}>
+                    <div key={e.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
+                      <div className="mb-0.5 flex items-center justify-between text-slate-400">
+                        <span className={`font-medium ${e.direction === "送信" ? "text-blue-600" : "text-slate-600"}`}>
                           {e.direction}
                         </span>
                         <span>{e.sentAt}</span>
                       </div>
-                      <p className="font-medium text-gray-700">{e.subject}</p>
-                      <p className="text-gray-500 mt-0.5">{e.summary}</p>
+                      <p className="font-medium text-slate-700">{e.subject}</p>
+                      <p className="mt-0.5 text-slate-500">{e.summary}</p>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           </div>
         )}
       </div>

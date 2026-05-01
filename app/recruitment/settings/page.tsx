@@ -2,29 +2,46 @@
 
 import { useState } from "react";
 import { useRecruitment } from "../context";
-import { EmailTemplate } from "../types";
+import { Candidate, EmailTemplate } from "../types";
 
 type SettingsTab = "面接官" | "メールテンプレート" | "Slack設定" | "バックアップ";
 
 const TEMPLATE_CATEGORIES: EmailTemplate["category"][] = ["書類選考", "面接案内", "合否通知", "内定", "その他"];
 
+const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+const selectCls = "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+
+function SelectArrow() {
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
+      <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("面接官");
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b border-gray-200 bg-white px-6 py-5">
-        <h1 className="text-2xl font-bold text-gray-900">設定</h1>
-        <p className="mt-1 text-sm text-gray-500">システムの各種設定を管理します。</p>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 bg-white px-6 py-5">
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">設定</h1>
+        <p className="mt-0.5 text-sm text-slate-500">システムの各種設定を管理します。</p>
       </div>
 
-      <div className="flex border-b border-gray-100 bg-white px-6">
+      <div className="flex border-b border-slate-100 bg-white px-6" role="tablist" aria-label="設定タブ">
         {(["面接官", "メールテンプレート", "Slack設定", "バックアップ"] as SettingsTab[]).map((tab) => (
           <button
             key={tab}
+            role="tab"
+            aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
-            className={`mr-6 border-b-2 py-3 text-sm font-semibold transition-colors ${
-              activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-700"
+            className={`mr-6 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+              activeTab === tab
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-400 hover:text-slate-700"
             }`}
           >
             {tab}
@@ -32,7 +49,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
         {activeTab === "面接官" && <InterviewersTab />}
         {activeTab === "メールテンプレート" && <EmailTemplatesTab />}
         {activeTab === "Slack設定" && <SlackSettingsTab />}
@@ -64,55 +81,68 @@ function InterviewersTab() {
 
   return (
     <div className="max-w-4xl">
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">面接官</h2>
-          <p className="mt-0.5 text-sm text-gray-500">登録した面接官は面接設定で選択できます。Slackメンションもここで設定します。</p>
-          <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-800 space-y-1">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-900">面接官</h2>
+          <p className="mt-0.5 text-sm text-slate-500">登録した面接官は面接設定で選択できます。Slackメンションもここで設定します。</p>
+          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
             <p className="font-semibold">Slackメンションの設定方法</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-blue-700">
+            <ol className="mt-1 list-inside list-decimal space-y-0.5 text-blue-700">
               <li>Slackで該当メンバーのプロフィールを開く</li>
               <li>「…」→「メンバーIDをコピー」を選択</li>
-              <li>コピーしたID（例: <code className="font-mono bg-blue-100 px-1 rounded">U12345ABC</code>）を下の欄に貼り付ける</li>
+              <li>コピーしたID（例: <code className="rounded bg-blue-100 px-1 font-mono">U12345ABC</code>）を下の欄に貼り付ける</li>
             </ol>
-            <p className="text-blue-600 mt-1">入力値は自動で <code className="font-mono bg-blue-100 px-1 rounded">&lt;@U12345ABC&gt;</code> に変換されます。</p>
+            <p className="mt-1 text-blue-600">入力値は自動で <code className="rounded bg-blue-100 px-1 font-mono">&lt;@U12345ABC&gt;</code> に変換されます。</p>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+        <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4">
           <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <input type="text" value={input} onChange={(e) => { setInput(e.target.value); setError(""); }}
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => { setInput(e.target.value); setError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="面接官名（例：山田部長）"
-              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            <input type="text" value={mentionInput} onChange={(e) => setMentionInput(e.target.value)}
+              aria-label="面接官名"
+              className={inputCls}
+            />
+            <input
+              type="text"
+              value={mentionInput}
+              onChange={(e) => setMentionInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="SlackメンバーID（例：U12345ABC）"
-              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-            <button onClick={handleAdd} disabled={!input.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              aria-label="SlackメンバーID"
+              className={inputCls}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!input.trim()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               追加
             </button>
           </div>
-          {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+          {error && <p className="mt-1.5 text-xs text-red-600" role="alert">{error}</p>}
         </div>
 
         {interviewers.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-gray-400">面接官が登録されていません</div>
+          <div className="px-6 py-12 text-center text-sm text-slate-400">面接官が登録されていません</div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-slate-100">
             {interviewers.map((name) => (
               <li key={name} className="flex items-center justify-between gap-3 px-6 py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700" aria-hidden="true">
                     {name[0]}
                   </div>
                   <div>
-                    <span className="text-sm font-medium text-gray-800">{name}</span>
-                    <p className="mt-0.5 text-xs text-gray-400">
+                    <span className="text-sm font-medium text-slate-800">{name}</span>
+                    <p className="mt-0.5 text-xs text-slate-400">
                       {interviewerMentions[name]
                         ? `メンション: ${interviewerMentions[name].startsWith("<@") ? interviewerMentions[name] : `<@${interviewerMentions[name]}>`}`
                         : "メンションID未設定"}
@@ -120,12 +150,20 @@ function InterviewersTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input type="text" value={interviewerMentions[name] ?? ""} onChange={(e) => updateInterviewerMention(name, e.target.value)}
+                  <input
+                    type="text"
+                    value={interviewerMentions[name] ?? ""}
+                    onChange={(e) => updateInterviewerMention(name, e.target.value)}
                     placeholder="U12345ABC"
-                    className="w-56 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
-                  <button onClick={() => removeInterviewer(name)}
-                    className="rounded-lg border border-gray-200 p-1.5 text-gray-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors" title="削除">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    aria-label={`${name}のSlackメンションID`}
+                    className="w-52 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                  <button
+                    onClick={() => removeInterviewer(name)}
+                    aria-label={`${name}を削除`}
+                    className="rounded-md border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
@@ -176,23 +214,25 @@ function EmailTemplatesTab() {
   }
 
   const categoryColors: Record<EmailTemplate["category"], string> = {
-    "書類選考": "bg-blue-100 text-blue-700",
-    "面接案内": "bg-purple-100 text-purple-700",
-    "合否通知": "bg-orange-100 text-orange-700",
-    "内定": "bg-green-100 text-green-700",
-    "その他": "bg-gray-100 text-gray-600",
+    書類選考: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+    面接案内: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+    合否通知: "bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-200",
+    内定: "bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-300",
+    その他: "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60",
   };
 
   return (
     <div className="max-w-4xl space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-gray-900">メールテンプレート</h2>
-          <p className="text-sm text-gray-500">よく使うメール文面を保存して再利用できます。</p>
+          <h2 className="text-sm font-semibold text-slate-900">メールテンプレート</h2>
+          <p className="mt-0.5 text-sm text-slate-500">よく使うメール文面を保存して再利用できます。</p>
         </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button
+          onClick={openAdd}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           テンプレートを追加
@@ -200,71 +240,110 @@ function EmailTemplatesTab() {
       </div>
 
       {(isAdding || editing) && (
-        <div className="rounded-2xl border-2 border-blue-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900 mb-4">{isAdding ? "新規テンプレート" : "テンプレートを編集"}</h3>
+        <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-semibold text-slate-900">{isAdding ? "新規テンプレート" : "テンプレートを編集"}</h3>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-500">テンプレート名</label>
-                <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                <label className="mb-1 block text-xs font-medium text-slate-600">テンプレート名</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="例：面接日程のご案内"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                  className={inputCls}
+                />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-500">カテゴリ</label>
-                <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as EmailTemplate["category"] }))}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100">
-                  {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <label className="mb-1 block text-xs font-medium text-slate-600">カテゴリ</label>
+                <div className="relative">
+                  <select
+                    value={form.category}
+                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as EmailTemplate["category"] }))}
+                    className={selectCls}
+                  >
+                    {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <SelectArrow />
+                </div>
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">件名</label>
-              <input type="text" value={form.subject} onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              <label className="mb-1 block text-xs font-medium text-slate-600">件名</label>
+              <input
+                type="text"
+                value={form.subject}
+                onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                 placeholder="メール件名"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                className={inputCls}
+              />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold text-gray-500">本文</label>
-              <textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))} rows={8}
+              <label className="mb-1 block text-xs font-medium text-slate-600">本文</label>
+              <textarea
+                value={form.body}
+                onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
+                rows={8}
                 placeholder="メール本文"
-                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                className={`${inputCls} resize-none`}
+              />
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <button onClick={() => { setIsAdding(false); setEditing(null); }}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">キャンセル</button>
-            <button onClick={handleSave} disabled={!form.name.trim() || !form.subject.trim()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40">保存</button>
+            <button
+              onClick={() => { setIsAdding(false); setEditing(null); }}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!form.name.trim() || !form.subject.trim()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+            >
+              保存
+            </button>
           </div>
         </div>
       )}
 
       <div className="space-y-3">
         {emailTemplates.map((t) => (
-          <div key={t.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${categoryColors[t.category]}`}>{t.category}</span>
-                  <span className="text-sm font-bold text-gray-900">{t.name}</span>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${categoryColors[t.category]}`}>{t.category}</span>
+                  <span className="text-sm font-semibold text-slate-900">{t.name}</span>
                 </div>
-                <p className="text-xs font-medium text-gray-600 mb-1">件名: {t.subject}</p>
-                <p className="text-xs text-gray-400 line-clamp-2">{t.body}</p>
+                <p className="text-xs font-medium text-slate-600 mb-1">件名: {t.subject}</p>
+                <p className="line-clamp-2 text-xs text-slate-400">{t.body}</p>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => handleCopy(t)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    copied === t.id ? "border-green-200 bg-green-50 text-green-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                  }`}>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => handleCopy(t)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                    copied === t.id
+                      ? "border-blue-200 bg-blue-50 text-blue-700 focus-visible:ring-blue-400"
+                      : "border-slate-300 text-slate-600 hover:bg-slate-50 focus-visible:ring-slate-400"
+                  }`}
+                >
                   {copied === t.id ? "コピー済み" : "コピー"}
                 </button>
-                <button onClick={() => openEdit(t)}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">編集</button>
-                <button onClick={() => {
-                  if (window.confirm(`「${t.name}」を削除しますか？`)) deleteEmailTemplate(t.id);
-                }}
-                  className="rounded-lg border border-red-100 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50">削除</button>
+                <button
+                  onClick={() => openEdit(t)}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                >
+                  編集
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`「${t.name}」を削除しますか？`)) deleteEmailTemplate(t.id);
+                  }}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                >
+                  削除
+                </button>
               </div>
             </div>
           </div>
@@ -295,7 +374,7 @@ function SlackSettingsTab() {
             candidateName: "テスト",
             sentAt: new Date().toISOString(),
             channel: config.statusChange,
-            message: "✅ 採用管理システムのSlack接続テストです。このメッセージが届いていれば設定は正常です。",
+            message: "採用管理システムのSlack接続テストです。このメッセージが届いていれば設定は正常です。",
           }],
         }),
       });
@@ -320,9 +399,9 @@ function SlackSettingsTab() {
 
   return (
     <div className="max-w-2xl space-y-5">
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-bold text-gray-900 mb-1">Slack通知チャンネル</h2>
-        <p className="text-sm text-gray-500 mb-5">イベント別に通知先チャンネルを設定できます。</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">Slack通知チャンネル</h2>
+        <p className="mb-5 text-sm text-slate-500">イベント別に通知先チャンネルを設定できます。</p>
         <div className="space-y-4">
           {[
             { key: "statusChange" as const, label: "ステータス変更通知", desc: "候補者のステータスが変わったときに通知" },
@@ -330,26 +409,45 @@ function SlackSettingsTab() {
             { key: "offerDecision" as const, label: "合否決定通知", desc: "面接の合否が決定したときに通知" },
           ].map(({ key, label, desc }) => (
             <div key={key}>
-              <label className="mb-1 block text-sm font-bold text-gray-700">{label}</label>
-              <p className="mb-1 text-xs text-gray-400">{desc}</p>
-              <input type="text" value={config[key]} onChange={(e) => setConfig((c) => ({ ...c, [key]: e.target.value }))}
+              <label htmlFor={`slack-${key}`} className="mb-0.5 block text-sm font-medium text-slate-700">{label}</label>
+              <p className="mb-1.5 text-xs text-slate-400">{desc}</p>
+              <input
+                id={`slack-${key}`}
+                type="text"
+                value={config[key]}
+                onChange={(e) => setConfig((c) => ({ ...c, [key]: e.target.value }))}
                 placeholder="#採用チャンネル"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100" />
+                className={inputCls}
+              />
             </div>
           ))}
         </div>
         <div className="mt-5 flex items-center gap-3">
-          <button onClick={handleSave}
-            className={`rounded-lg px-5 py-2 text-sm font-bold text-white transition-colors ${saved ? "bg-green-500" : "bg-blue-600 hover:bg-blue-700"}`}>
-            {saved ? "✓ 保存しました" : "保存する"}
+          <button
+            onClick={handleSave}
+            className={`rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              saved ? "bg-blue-700 focus-visible:ring-blue-500" : "bg-blue-600 hover:bg-blue-700 focus-visible:ring-blue-500"
+            }`}
+          >
+            {saved ? "保存しました" : "保存する"}
           </button>
-          <button onClick={handleTest} disabled={testing}
-            className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="rounded-lg border border-slate-300 px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+          >
             {testing ? "送信中..." : "テスト送信"}
           </button>
         </div>
         {testResult && (
-          <div className={`mt-3 rounded-lg px-4 py-3 text-sm font-medium ${testResult.ok ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          <div
+            role="status"
+            className={`mt-3 rounded-lg border px-4 py-3 text-sm font-medium ${
+              testResult.ok
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
             {testResult.message}
           </div>
         )}
@@ -359,7 +457,7 @@ function SlackSettingsTab() {
 }
 
 function BackupTab() {
-  const { candidates, interviewStages, slackNotifications, emailHistories, interviewQuestions, interviewers, interviewerMentions, emailTemplates, hireGoals, flowTemplates, slackChannelConfig } = useRecruitment();
+  const { candidates, addCandidates, interviewStages, slackNotifications, emailHistories, interviewQuestions, interviewers, interviewerMentions, emailTemplates, hireGoals, flowTemplates, slackChannelConfig } = useRecruitment();
   const [importError, setImportError] = useState("");
   const [importSuccess, setImportSuccess] = useState(false);
 
@@ -367,17 +465,9 @@ function BackupTab() {
     const data = {
       version: 2,
       exportedAt: new Date().toISOString(),
-      candidates,
-      interviewStages,
-      slackNotifications,
-      emailHistories,
-      interviewQuestions,
-      interviewers,
-      interviewerMentions,
-      emailTemplates,
-      hireGoals,
-      flowTemplates,
-      slackChannelConfig,
+      candidates, interviewStages, slackNotifications, emailHistories,
+      interviewQuestions, interviewers, interviewerMentions, emailTemplates,
+      hireGoals, flowTemplates, slackChannelConfig,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -419,7 +509,7 @@ function BackupTab() {
         const posIdx = header.indexOf("志望職種");
         if (nameIdx === -1) { setImportError("「氏名」列が見つかりません。"); return; }
         const today = new Date().toISOString().slice(0, 10);
-        const imported = lines.slice(1).map((line) => {
+        const imported: Candidate[] = lines.slice(1).map((line) => {
           const cols = parseCSVLine(line);
           return {
             id: crypto.randomUUID(),
@@ -441,7 +531,7 @@ function BackupTab() {
           };
         }).filter((c) => c.name);
         if (imported.length === 0) { setImportError("有効なデータが見つかりませんでした。"); return; }
-        alert(`${imported.length}件の候補者データを読み込みました。保存するにはページをリロードせずそのままお使いください。`);
+        addCandidates(imported);
         setImportSuccess(true);
         setImportError("");
       } catch {
@@ -454,20 +544,24 @@ function BackupTab() {
 
   return (
     <div className="max-w-2xl space-y-5">
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-bold text-gray-900 mb-1">データエクスポート</h2>
-        <p className="text-sm text-gray-500 mb-4">全データのバックアップや、候補者一覧のCSV出力ができます。</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">データエクスポート</h2>
+        <p className="mb-4 text-sm text-slate-500">全データのバックアップや、候補者一覧のCSV出力ができます。</p>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleExport}
-            className="flex items-center gap-2 rounded-xl border-2 border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100 transition-colors">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             JSONバックアップをダウンロード
           </button>
-          <button onClick={handleCsvExport}
-            className="flex items-center gap-2 rounded-xl border-2 border-green-200 bg-green-50 px-5 py-3 text-sm font-bold text-green-700 hover:bg-green-100 transition-colors">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            onClick={handleCsvExport}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             候補者一覧をCSVで出力 ({candidates.length}件)
@@ -475,21 +569,21 @@ function BackupTab() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-base font-bold text-gray-900 mb-1">CSVインポート</h2>
-        <p className="text-sm text-gray-500 mb-2">既存のスプレッドシートから候補者を一括登録します。</p>
-        <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-          <p className="font-semibold">対応列：氏名（必須）, ふりがな, 志望職種, 応募日, メールアドレス, 電話番号, 年齢, 応募ソース, タグ（|区切り）, スキル（|区切り）</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">CSVインポート</h2>
+        <p className="mb-3 text-sm text-slate-500">既存のスプレッドシートから候補者を一括登録します。</p>
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+          対応列：氏名（必須）, ふりがな, 志望職種, 応募日, メールアドレス, 電話番号, 年齢, 応募ソース, タグ（|区切り）, スキル（|区切り）
         </div>
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-gray-300 px-5 py-4 text-sm font-semibold text-gray-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-colors w-fit">
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-5 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-1">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
           </svg>
           CSVファイルを選択してインポート
-          <input type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          <input type="file" accept=".csv" onChange={handleCsvImport} className="sr-only" />
         </label>
-        {importError && <p className="mt-2 text-xs text-red-600">{importError}</p>}
-        {importSuccess && <p className="mt-2 text-xs text-green-600">インポートが完了しました。</p>}
+        {importError && <p className="mt-2 text-xs text-red-600" role="alert">{importError}</p>}
+        {importSuccess && <p className="mt-2 text-xs text-blue-700" role="status">インポートが完了しました。</p>}
       </div>
     </div>
   );

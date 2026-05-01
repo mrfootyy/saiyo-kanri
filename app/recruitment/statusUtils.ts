@@ -18,6 +18,10 @@ export function getStatusForStageName(stageName: string): CandidateStatus {
   return "書類選考";
 }
 
+function recordMatchesStage(record: InterviewRecord, stage: InterviewStage): boolean {
+  return record.stageId ? record.stageId === stage.id : record.stageName === stage.name;
+}
+
 export function getStageIndexForStatus(status: CandidateStatus, stages: InterviewStage[]): number {
   const sorted = [...stages].sort((a, b) => a.order - b.order);
 
@@ -45,13 +49,13 @@ export function deriveCandidateStatusFromFlow(
 ): CandidateStatus {
   if (currentStatus === "辞退") return "辞退";
   if (records.some((record) => record.result === "不採用")) return "不採用";
+  if (currentStatus === "内定" || currentStatus === "不採用") return currentStatus;
   if (stages.length === 0) return currentStatus;
-  if (currentStatus === "内定") return "内定";
 
   const sorted = [...stages].sort((a, b) => a.order - b.order);
 
   for (const stage of sorted) {
-    const record = records.find((r) => r.stageName === stage.name);
+    const record = records.find((r) => recordMatchesStage(r, stage));
     if (!record || record.result !== "通過") {
       return getStatusForStageName(stage.name);
     }
