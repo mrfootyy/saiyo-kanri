@@ -388,18 +388,19 @@ export default function QuestionsPage() {
               {filtered.map((q) => (
                 <div
                   key={q.id}
-                  className={`group flex items-start gap-4 rounded-xl border bg-white px-5 py-4 transition-all hover:shadow-sm ${
+                  className={`group rounded-xl border bg-white px-5 py-4 transition-all hover:shadow-sm ${
                     selected.has(q.id) ? "border-blue-300 bg-blue-50/40 shadow-sm" : "border-slate-200"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(q.id)}
-                    onChange={() => toggleSelect(q.id)}
-                    aria-label={`質問を選択: ${q.text.slice(0, 30)}...`}
-                    className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
-                  />
-                  <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(q.id)}
+                      onChange={() => toggleSelect(q.id)}
+                      aria-label={`質問を選択: ${q.text.slice(0, 30)}...`}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer rounded border-slate-300 text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                    />
+                    <div className="min-w-0 flex-1">
                     <p className="text-sm leading-relaxed text-slate-800">{q.text}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {q.tags.map((tag) => (
@@ -431,16 +432,10 @@ export default function QuestionsPage() {
                           </svg>
                           模範解答・評価ガイドを見る
                         </button>
-                        {openAnswerId === q.id && (
-                          <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-                            <p className="mb-1.5 text-sm font-semibold text-blue-800">評価ガイド</p>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-blue-900">{q.modelAnswer}</p>
-                          </div>
-                        )}
                       </div>
                     )}
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
                     <button
                       onClick={() => updateInterviewQuestion({ ...q, required: !q.required })}
                       aria-pressed={!!q.required}
@@ -473,7 +468,14 @@ export default function QuestionsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
+                    </div>
                   </div>
+                  {q.modelAnswer && openAnswerId === q.id && (
+                    <div className="mt-3 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                      <p className="mb-1.5 text-sm font-semibold text-blue-800">評価ガイド</p>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-blue-900">{q.modelAnswer}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

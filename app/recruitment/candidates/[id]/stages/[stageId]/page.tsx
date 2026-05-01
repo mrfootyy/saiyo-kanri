@@ -1064,16 +1064,13 @@ function EvaluationCard({
           <div key={item.name} className="grid grid-cols-[180px_auto_1fr] items-start gap-4 px-5 py-4">
             <div className="pt-1">
               <p className="text-sm font-medium text-slate-800">{item.name}</p>
-              {item.grade && (
-                <p className="mt-0.5 text-xs text-slate-400">{GRADE_LABEL[item.grade]}</p>
-              )}
             </div>
             <div className="flex gap-1 pt-0.5">
               {GRADE_OPTIONS.map((g) => (
                 <button
                   key={g}
                   onClick={() => onUpdateEval(i, { grade: item.grade === g ? null : g })}
-                  aria-label={`${item.name}: ${GRADE_LABEL[g]}（${g}点）`}
+                  aria-label={`${item.name}: ${g}点`}
                   aria-pressed={item.grade === g}
                   className={`h-8 w-8 rounded-md border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                     item.grade === g ? GRADE_ACTIVE[g] : GRADE_IDLE
