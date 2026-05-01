@@ -36,10 +36,19 @@ type OnboardingContextType = {
   slackNotifications: OnboardingSlackNotification[];
   addMember: (m: OnboardingMember) => void;
   updateMember: (m: OnboardingMember) => void;
+  removeMember: (id: string) => void;
   addTrainingRecord: (r: TrainingRecord) => void;
+  updateTrainingRecord: (r: TrainingRecord) => void;
+  deleteTrainingRecord: (id: string) => void;
   addOjtRecord: (r: OjtRecord) => void;
+  updateOjtRecord: (r: OjtRecord) => void;
+  deleteOjtRecord: (id: string) => void;
   addDailyReport: (r: DailyReport) => void;
+  updateDailyReport: (r: DailyReport) => void;
+  deleteDailyReport: (id: string) => void;
   addMentorMeeting: (m: MentorMeeting) => void;
+  updateMentorMeeting: (m: MentorMeeting) => void;
+  deleteMentorMeeting: (id: string) => void;
   addSlackNotification: (n: OnboardingSlackNotification) => void;
 };
 
@@ -96,15 +105,33 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     addMember: (m) => update({ ...data, members: [...data.members, m] }),
     updateMember: (m) =>
       update({ ...data, members: data.members.map((x) => (x.id === m.id ? m : x)) }),
+    removeMember: (id) =>
+      update({ ...data, members: data.members.filter((x) => x.id !== id) }),
 
     addTrainingRecord: (r) =>
       update({ ...data, trainingRecords: [...data.trainingRecords, r] }),
+    updateTrainingRecord: (r) =>
+      update({ ...data, trainingRecords: data.trainingRecords.map((x) => (x.id === r.id ? r : x)) }),
+    deleteTrainingRecord: (id) =>
+      update({ ...data, trainingRecords: data.trainingRecords.filter((x) => x.id !== id) }),
     addOjtRecord: (r) =>
       update({ ...data, ojtRecords: [...data.ojtRecords, r] }),
+    updateOjtRecord: (r) =>
+      update({ ...data, ojtRecords: data.ojtRecords.map((x) => (x.id === r.id ? r : x)) }),
+    deleteOjtRecord: (id) =>
+      update({ ...data, ojtRecords: data.ojtRecords.filter((x) => x.id !== id) }),
     addDailyReport: (r) =>
       update({ ...data, dailyReports: [...data.dailyReports, r] }),
+    updateDailyReport: (r) =>
+      update({ ...data, dailyReports: data.dailyReports.map((x) => (x.id === r.id ? r : x)) }),
+    deleteDailyReport: (id) =>
+      update({ ...data, dailyReports: data.dailyReports.filter((x) => x.id !== id) }),
     addMentorMeeting: (m) =>
       update({ ...data, mentorMeetings: [...data.mentorMeetings, m] }),
+    updateMentorMeeting: (m) =>
+      update({ ...data, mentorMeetings: data.mentorMeetings.map((x) => (x.id === m.id ? m : x)) }),
+    deleteMentorMeeting: (id) =>
+      update({ ...data, mentorMeetings: data.mentorMeetings.filter((x) => x.id !== id) }),
     addSlackNotification: (n) =>
       update({ ...data, slackNotifications: [...data.slackNotifications, n] }),
   };

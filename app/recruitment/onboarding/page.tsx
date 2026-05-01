@@ -1,25 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useOnboarding } from "./context";
-import type { ConditionFilterValue, MemberCondition, RetentionRisk, RiskFilterValue } from "./types";
-
-const CONDITION_FILTER_OPTIONS: ConditionFilterValue[] = ["すべて", "良好", "普通", "不安あり", "要対応"];
-const RISK_FILTER_OPTIONS: RiskFilterValue[] = ["すべて", "低", "中", "高"];
-
-const CONDITION_BADGE: Record<MemberCondition, string> = {
-  良好: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  普通: "bg-slate-100 text-slate-600 ring-slate-200",
-  不安あり: "bg-amber-50 text-amber-700 ring-amber-200",
-  要対応: "bg-red-50 text-red-700 ring-red-200",
-};
-
-const RISK_BADGE: Record<RetentionRisk, string> = {
-  低: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  中: "bg-amber-50 text-amber-700 ring-amber-200",
-  高: "bg-red-50 text-red-700 ring-red-200",
-};
+import { useRecruitment } from "../context";
+import type { OnboardingStatus } from "./types";
 
 const STATUS_BADGE: Record<string, string> = {
   未開始: "bg-slate-100 text-slate-500",
@@ -28,12 +13,39 @@ const STATUS_BADGE: Record<string, string> = {
   要フォロー: "bg-red-50 text-red-700",
 };
 
-export default function OnboardingPage() {
-  const { members, trainingRecords, dailyReports, mentorMeetings } = useOnboarding();
+const inputCls =
+  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+const selectCls =
+  "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-white";
+const labelCls = "mb-1 block text-xs font-medium text-slate-500";
 
+function SelectArrow() {
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3" aria-hidden="true">
+      <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
+function today() { return new Date().toISOString().slice(0, 10); }
+
+export default function OnboardingPage() {
+  const { members, trainingRecords, dailyReports, mentorMeetings, addMember, removeMember } = useOnboarding();
+  const { interviewers } = useRecruitment();
+
+  const router = useRouter();
   const [search, setSearch] = useState("");
-  const [conditionFilter, setConditionFilter] = useState<ConditionFilterValue>("すべて");
-  const [riskFilter, setRiskFilter] = useState<RiskFilterValue>("すべて");
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Add form state
+  const [aName, setAName] = useState("");
+  const [aPosition, setAPosition] = useState("");
+  const [aDept, setADept] = useState("");
+  const [aJoined, setAJoined] = useState(today());
+  const [aMentor, setAMentor] = useState("");
+  const [aOjt, setAOjt] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -46,16 +58,13 @@ export default function OnboardingPage() {
         !m.ojtOwner.toLowerCase().includes(q)
       )
         return false;
-      if (conditionFilter !== "すべて" && m.condition !== conditionFilter) return false;
-      if (riskFilter !== "すべて" && m.retentionRisk !== riskFilter) return false;
       return true;
     });
-  }, [members, search, conditionFilter, riskFilter]);
+  }, [members, search]);
 
   const totalCount = members.length;
   const inProgressCount = members.filter((m) => m.onboardingStatus === "進行中").length;
-  const needFollowCount = members.filter((m) => m.condition === "不安あり" || m.condition === "要対応").length;
-  const highRiskCount = members.filter((m) => m.retentionRisk === "高").length;
+  const needFollowCount = members.filter((m) => m.onboardingStatus === "要フォロー").length;
 
   function getLatestReport(memberId: string) {
     return dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt))[0] ?? null;
@@ -69,6 +78,32 @@ export default function OnboardingPage() {
     return trainingRecords.filter((r) => r.memberId === memberId).length;
   }
 
+  function handleAdd() {
+    if (!aName.trim() || !aPosition.trim()) return;
+    addMember({
+      id: crypto.randomUUID(),
+      name: aName.trim(),
+      position: aPosition.trim(),
+      department: aDept.trim(),
+      joinedAt: aJoined,
+      mentor: aMentor,
+      ojtOwner: aOjt,
+      onboardingStatus: "未開始" as OnboardingStatus,
+      condition: "普通",
+      retentionRisk: "低",
+      memo: "",
+      updatedAt: today(),
+    });
+    setAName(""); setAPosition(""); setADept(""); setAJoined(today()); setAMentor(""); setAOjt("");
+    setShowAddForm(false);
+  }
+
+  function handleDelete(e: React.MouseEvent, id: string, name: string) {
+    e.stopPropagation();
+    if (!window.confirm(`「${name}」を削除しますか？関連する記録もすべて削除されます。`)) return;
+    removeMember(id);
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* ヘッダー */}
@@ -79,7 +114,7 @@ export default function OnboardingPage() {
 
       {/* サマリーカード */}
       <div className="border-b border-slate-100 bg-white px-6 py-4">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-500">入社者数</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{totalCount}<span className="ml-1 text-sm font-normal text-slate-400">名</span></p>
@@ -92,51 +127,82 @@ export default function OnboardingPage() {
             <p className="text-xs font-medium text-amber-600">要フォロー</p>
             <p className="mt-1 text-2xl font-bold text-amber-700">{needFollowCount}<span className="ml-1 text-sm font-normal text-amber-400">名</span></p>
           </div>
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-            <p className="text-xs font-medium text-red-600">高リスク</p>
-            <p className="mt-1 text-2xl font-bold text-red-700">{highRiskCount}<span className="ml-1 text-sm font-normal text-red-400">名</span></p>
-          </div>
         </div>
       </div>
 
-      {/* 検索・フィルター */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-white px-6 py-3">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="氏名・職種・メンター・OJT担当で検索"
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
-        />
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-500">状態:</span>
-          {CONDITION_FILTER_OPTIONS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setConditionFilter(c)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                conditionFilter === c ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-500">リスク:</span>
-          {RISK_FILTER_OPTIONS.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRiskFilter(r)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                riskFilter === r ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
+      {/* 検索・追加 */}
+      <div className="border-b border-slate-100 bg-white px-6 py-3">
+        <div className="flex items-center gap-3">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="氏名・職種・メンター・OJT担当で検索"
+            className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
+          />
+          <button
+            onClick={() => setShowAddForm((v) => !v)}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            {showAddForm ? "キャンセル" : "メンバーを追加"}
+          </button>
         </div>
       </div>
+
+      {/* 追加フォーム */}
+      {showAddForm && (
+        <div className="border-b border-blue-100 bg-blue-50 px-6 py-4">
+          <p className="mb-3 text-sm font-semibold text-slate-800">新しいメンバーを追加</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelCls}>氏名 <span className="text-red-500">*</span></label>
+              <input type="text" value={aName} onChange={(e) => setAName(e.target.value)} placeholder="田中 花子" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>職種 <span className="text-red-500">*</span></label>
+              <input type="text" value={aPosition} onChange={(e) => setAPosition(e.target.value)} placeholder="フロントエンドエンジニア" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>部署</label>
+              <input type="text" value={aDept} onChange={(e) => setADept(e.target.value)} placeholder="開発部" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>入社日</label>
+              <input type="date" value={aJoined} onChange={(e) => setAJoined(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>メンター</label>
+              <div className="relative">
+                <select value={aMentor} onChange={(e) => setAMentor(e.target.value)} className={selectCls}>
+                  <option value="">未設定</option>
+                  {interviewers.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+                <SelectArrow />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>OJT担当</label>
+              <div className="relative">
+                <select value={aOjt} onChange={(e) => setAOjt(e.target.value)} className={selectCls}>
+                  <option value="">未設定</option>
+                  {interviewers.map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+                <SelectArrow />
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handleAdd}
+            disabled={!aName.trim() || !aPosition.trim()}
+            className="mt-3 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          >
+            追加する
+          </button>
+        </div>
+      )}
 
       {/* テーブル */}
       <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
@@ -158,8 +224,7 @@ export default function OnboardingPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">研修記録</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最新日報</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最終面談</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">状態</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">リスク</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -171,18 +236,16 @@ export default function OnboardingPage() {
                   return (
                     <tr
                       key={m.id}
-                      className={`border-b border-slate-50 last:border-b-0 ${idx % 2 === 1 ? "bg-slate-50/30" : ""}`}
+                      onClick={() => router.push(`/recruitment/onboarding/${m.id}`)}
+                      className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-blue-50 last:border-b-0 ${idx % 2 === 1 ? "bg-slate-50/30" : ""}`}
                     >
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/recruitment/onboarding/${m.id}`}
-                          className="flex items-center gap-2 font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                        >
+                        <div className="flex items-center gap-2 font-medium text-blue-600">
                           {m.name}
                           {(m.condition === "不安あり" || m.condition === "要対応") && (
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="要フォロー" />
                           )}
-                        </Link>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-600">{m.position}</td>
                       <td className="px-4 py-3 text-slate-500">{m.joinedAt}</td>
@@ -210,10 +273,15 @@ export default function OnboardingPage() {
                         {latestMeeting ? latestMeeting.meetingAt : <span className="text-slate-300">なし</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[m.condition]}`}>{m.condition}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[m.retentionRisk]}`}>{m.retentionRisk}</span>
+                        <button
+                          onClick={(e) => handleDelete(e, m.id, m.name)}
+                          aria-label={`${m.name}を削除`}
+                          className="rounded-md p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                        >
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </td>
                     </tr>
                   );

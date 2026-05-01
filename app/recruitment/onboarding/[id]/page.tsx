@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useOnboarding } from "../context";
+import { useRecruitment } from "../../context";
 import type {
   OnboardingStatus,
   MemberCondition,
@@ -11,14 +12,17 @@ import type {
   OjtDifficulty,
   OjtProgress,
   ShareWithManager,
+  TrainingRecord,
+  OjtRecord,
+  DailyReport,
+  MentorMeeting,
 } from "../types";
 
-type Tab = "基本情報" | "研修記録" | "OJT記録" | "日報" | "面談記録" | "Slack通知";
-const TABS: Tab[] = ["基本情報", "研修記録", "OJT記録", "日報", "面談記録", "Slack通知"];
+type Tab = "基本情報" | "研修記録" | "OJT記録" | "日報" | "面談記録";
+const TABS: Tab[] = ["基本情報", "研修記録", "OJT記録", "日報", "面談記録"];
 
 const CONDITION_OPTIONS: MemberCondition[] = ["良好", "普通", "不安あり", "要対応"];
-const RISK_OPTIONS: RetentionRisk[] = ["低", "中", "高"];
-const STATUS_OPTIONS: OnboardingStatus[] = ["未開始", "進行中", "完了", "要フォロー"];
+const STATUS_OPTIONS: OnboardingStatus[] = ["未開始", "進行中", "完了"];
 const OJT_DIFFICULTY_OPTIONS: OjtDifficulty[] = ["低", "中", "高"];
 const OJT_PROGRESS_OPTIONS: OjtProgress[] = ["未着手", "作業中", "レビュー中", "完了"];
 const SHARE_OPTIONS: ShareWithManager[] = ["不要", "必要"];
@@ -52,33 +56,31 @@ function SelectArrow() {
   );
 }
 
-function ScoreSelect({ value, onChange, label }: { value: 1 | 2 | 3 | 4 | 5; onChange: (v: 1 | 2 | 3 | 4 | 5) => void; label: string }) {
+function today() { return new Date().toISOString().slice(0, 10); }
+
+// ---------- Modal ----------
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div>
-      <label className={labelCls}>{label}</label>
-      <div className="relative">
-        <select value={value} onChange={(e) => onChange(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)} className={selectCls}>
-          {([1, 2, 3, 4, 5] as const).map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-        <SelectArrow />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <button onClick={onClose} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
 }
 
-function today() { return new Date().toISOString().slice(0, 10); }
-function nowTs() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
 export default function OnboardingMemberPage() {
   const { id } = useParams<{ id: string }>();
-  const {
-    members, trainingRecords, ojtRecords, dailyReports, mentorMeetings, slackNotifications,
-    updateMember, addTrainingRecord, addOjtRecord, addDailyReport, addMentorMeeting, addSlackNotification,
-  } = useOnboarding();
-
+  const { members } = useOnboarding();
   const member = members.find((m) => m.id === id);
 
   if (!member) {
@@ -95,15 +97,23 @@ export default function OnboardingMemberPage() {
 
 function MemberDetail({ memberId }: { memberId: string }) {
   const {
-    members, trainingRecords, ojtRecords, dailyReports, mentorMeetings, slackNotifications,
-    updateMember, addTrainingRecord, addOjtRecord, addDailyReport, addMentorMeeting, addSlackNotification,
+    members, trainingRecords, ojtRecords, dailyReports, mentorMeetings,
+    updateMember, addTrainingRecord, updateTrainingRecord, deleteTrainingRecord,
+    addOjtRecord, updateOjtRecord, deleteOjtRecord,
+    addDailyReport, updateDailyReport, deleteDailyReport,
+    addMentorMeeting, updateMentorMeeting, deleteMentorMeeting,
   } = useOnboarding();
+  const { interviewers } = useRecruitment();
 
   const member = members.find((m) => m.id === memberId)!;
   const [activeTab, setActiveTab] = useState<Tab>("基本情報");
   const [saved, setSaved] = useState(false);
 
   // Basic info
+  const [name, setName] = useState(member.name);
+  const [position, setPosition] = useState(member.position);
+  const [department, setDepartment] = useState(member.department);
+  const [joinedAt, setJoinedAt] = useState(member.joinedAt);
   const [mentor, setMentor] = useState(member.mentor);
   const [ojtOwner, setOjtOwner] = useState(member.ojtOwner);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus>(member.onboardingStatus);
@@ -113,39 +123,39 @@ function MemberDetail({ memberId }: { memberId: string }) {
   const memberOjts = ojtRecords.filter((r) => r.memberId === memberId).sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
   const memberReports = dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
   const memberMeetings = mentorMeetings.filter((r) => r.memberId === memberId).sort((a, b) => b.meetingAt.localeCompare(a.meetingAt));
-  const memberSlacks = slackNotifications.filter((r) => r.memberId === memberId).sort((a, b) => b.sentAt.localeCompare(a.sentAt));
 
-  // Training form
+  // Add form state
   const [showTForm, setShowTForm] = useState(false);
   const [tName, setTName] = useState(""); const [tDate, setTDate] = useState(today()); const [tTrainer, setTTrainer] = useState("");
   const [tContent, setTContent] = useState(""); const [tLevel, setTLevel] = useState<1|2|3|4|5>(3); const [tUrl, setTUrl] = useState("");
   const [tGood, setTGood] = useState(""); const [tIssue, setTIssue] = useState(""); const [tNext, setTNext] = useState("");
 
-  // OJT form
   const [showOForm, setShowOForm] = useState(false);
   const [oProject, setOProject] = useState(""); const [oTask, setOTask] = useState(""); const [oDate, setODate] = useState(today());
   const [oDiff, setODiff] = useState<OjtDifficulty>("中"); const [oProg, setOProg] = useState<OjtProgress>("未着手"); const [oReviewer, setOReviewer] = useState("");
   const [oBlocker, setOBlocker] = useState(""); const [oFeedback, setOFeedback] = useState(""); const [oSelf, setOSelf] = useState<1|2|3|4|5>(3);
   const [oComment, setOComment] = useState("");
 
-  // Report form
   const [showRForm, setShowRForm] = useState(false);
   const [rDate, setRDate] = useState(today()); const [rDid, setRDid] = useState(""); const [rLearned, setRLearned] = useState("");
   const [rBlocked, setRBlocked] = useState(""); const [rNext, setRNext] = useState(""); const [rConsult, setRConsult] = useState("");
-  const [rCond, setRCond] = useState<1|2|3|4|5>(3); const [rWork, setRWork] = useState<1|2|3|4|5>(3);
-  const [rIso, setRIso] = useState<1|2|3|4|5>(1); const [rConf, setRConf] = useState<1|2|3|4|5>(3);
 
-  // Meeting form
   const [showMForm, setShowMForm] = useState(false);
   const [mDate, setMDate] = useState(today()); const [mMentor, setMMentor] = useState(member.mentor);
   const [mWorkCond, setMWorkCond] = useState<MemberCondition>("普通"); const [mMentalCond, setMMentalCond] = useState<MemberCondition>("普通");
   const [mConsult, setMConsult] = useState(""); const [mComment, setMComment] = useState(""); const [mNext, setMNext] = useState("");
   const [mShare, setMShare] = useState<ShareWithManager>("不要");
 
+  // Modal state
+  const [editingTraining, setEditingTraining] = useState<TrainingRecord | null>(null);
+  const [editingOjt, setEditingOjt] = useState<OjtRecord | null>(null);
+  const [editingReport, setEditingReport] = useState<DailyReport | null>(null);
+  const [editingMeeting, setEditingMeeting] = useState<MentorMeeting | null>(null);
+
   function flash() { setSaved(true); setTimeout(() => setSaved(false), 2000); }
 
   function handleSave() {
-    updateMember({ ...member, mentor, ojtOwner, onboardingStatus, memo, updatedAt: today() });
+    updateMember({ ...member, name: name.trim() || member.name, position: position.trim() || member.position, department: department.trim(), joinedAt, mentor, ojtOwner, onboardingStatus, memo, updatedAt: today() });
     flash();
   }
 
@@ -165,11 +175,8 @@ function MemberDetail({ memberId }: { memberId: string }) {
 
   function handleAddReport() {
     if (!rDid.trim()) return;
-    addDailyReport({ id: crypto.randomUUID(), memberId, reportedAt: rDate, didToday: rDid.trim(), learned: rLearned.trim(), blocked: rBlocked.trim(), nextPlan: rNext.trim(), consultation: rConsult.trim(), conditionScore: rCond, workloadScore: rWork, isolationScore: rIso, confidenceScore: rConf });
-    if (rConsult.trim()) {
-      addSlackNotification({ id: crypto.randomUUID(), memberId, memberName: member.name, sentAt: nowTs(), channel: "#オンボーディング-アラート", message: `${member.name}さんの日報に相談事項が記載されています：「${rConsult.trim()}」` });
-    }
-    setRDate(today()); setRDid(""); setRLearned(""); setRBlocked(""); setRNext(""); setRConsult(""); setRCond(3); setRWork(3); setRIso(1); setRConf(3);
+    addDailyReport({ id: crypto.randomUUID(), memberId, reportedAt: rDate, didToday: rDid.trim(), learned: rLearned.trim(), blocked: rBlocked.trim(), nextPlan: rNext.trim(), consultation: rConsult.trim(), conditionScore: 3, workloadScore: 3, isolationScore: 3, confidenceScore: 3 });
+    setRDate(today()); setRDid(""); setRLearned(""); setRBlocked(""); setRNext(""); setRConsult("");
     setShowRForm(false);
   }
 
@@ -180,16 +187,13 @@ function MemberDetail({ memberId }: { memberId: string }) {
       : mWorkCond === "不安あり" || mMentalCond === "不安あり" ? "中"
       : "低";
     addMentorMeeting({ id: crypto.randomUUID(), memberId, meetingAt: mDate, mentor: mMentor.trim(), workCondition: mWorkCond, mentalCondition: mMentalCond, consultation: mConsult.trim(), mentorComment: mComment.trim(), nextAction: mNext.trim(), shareWithManager: mShare, risk: derivedRisk });
-    if (mShare === "必要") {
-      addSlackNotification({ id: crypto.randomUUID(), memberId, memberName: member.name, sentAt: nowTs(), channel: "#オンボーディング-アラート", message: `${member.name}さんの面談で「上長への共有が必要」と判断されました。業務面：${mWorkCond}、メンタル面：${mMentalCond}。` });
-    }
     setMDate(today()); setMMentor(member.mentor); setMWorkCond("普通"); setMMentalCond("普通"); setMConsult(""); setMComment(""); setMNext(""); setMShare("不要");
     setShowMForm(false);
   }
 
   return (
     <div className="flex h-full flex-col">
-      {/* ページヘッダー */}
+      {/* Header */}
       <div className="border-b border-slate-200 bg-white px-6 py-5">
         <Link href="/recruitment/onboarding" className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -218,7 +222,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
         </div>
       </div>
 
-      {/* タブ */}
+      {/* Tabs */}
       <div className="flex border-b border-slate-100 bg-white px-6" role="tablist">
         {TABS.map((tab) => {
           const counts: Partial<Record<Tab, number>> = {
@@ -226,7 +230,6 @@ function MemberDetail({ memberId }: { memberId: string }) {
             "OJT記録": memberOjts.length,
             "日報": memberReports.length,
             "面談記録": memberMeetings.length,
-            "Slack通知": memberSlacks.length,
           };
           const count = counts[tab];
           return (
@@ -239,26 +242,59 @@ function MemberDetail({ memberId }: { memberId: string }) {
             >
               {tab}
               {count != null && count > 0 && (
-                <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === "Slack通知" ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500"}`}>{count}</span>
+                <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{count}</span>
               )}
             </button>
           );
         })}
       </div>
 
-      {/* コンテンツ */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
+
         {/* 基本情報 */}
         {activeTab === "基本情報" && (
           <div className="max-w-2xl space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className={labelCls}>氏名 <span className="text-red-500">*</span></label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>職種 <span className="text-red-500">*</span></label>
+                <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>部署</label>
+                <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>入社日</label>
+                <input type="date" value={joinedAt} onChange={(e) => setJoinedAt(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
                 <label className={labelCls}>メンター</label>
-                <input type="text" value={mentor} onChange={(e) => setMentor(e.target.value)} className={inputCls} />
+                <div className="relative">
+                  <select value={mentor} onChange={(e) => setMentor(e.target.value)} className={selectCls}>
+                    <option value="">未設定</option>
+                    {interviewers.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <SelectArrow />
+                </div>
               </div>
               <div>
                 <label className={labelCls}>OJT担当</label>
-                <input type="text" value={ojtOwner} onChange={(e) => setOjtOwner(e.target.value)} className={inputCls} />
+                <div className="relative">
+                  <select value={ojtOwner} onChange={(e) => setOjtOwner(e.target.value)} className={selectCls}>
+                    <option value="">未設定</option>
+                    {interviewers.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <SelectArrow />
+                </div>
               </div>
             </div>
             <div className="w-48">
@@ -315,21 +351,25 @@ function MemberDetail({ memberId }: { memberId: string }) {
             {memberTrainings.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center"><p className="text-sm text-slate-400">研修記録がまだありません。</p></div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {memberTrainings.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <div><p className="text-sm font-semibold text-slate-900">{r.trainingName}</p><p className="text-xs text-slate-400">{r.trainedAt} · 担当: {r.trainer || "—"}</p></div>
-                      <span className="flex-shrink-0 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">理解度 {r.understandingLevel}/5</span>
+                  <button
+                    key={r.id}
+                    onClick={() => setEditingTraining(r)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900">{r.trainingName}</p>
+                        <p className="mt-0.5 text-sm text-slate-400">{r.trainedAt}{r.trainer ? ` · 担当: ${r.trainer}` : ""}</p>
+                      </div>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">理解度 {r.understandingLevel}/5</span>
+                        <svg className="h-4 w-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </div>
                     </div>
-                    {r.content && <p className="mb-2 text-xs text-slate-600">{r.content}</p>}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                      {r.goodPoint && <p><span className="font-medium text-slate-500">良かった点:</span> <span className="text-slate-700">{r.goodPoint}</span></p>}
-                      {r.issuePoint && <p><span className="font-medium text-slate-500">課題点:</span> <span className="text-slate-700">{r.issuePoint}</span></p>}
-                      {r.nextAction && <p className="col-span-2"><span className="font-medium text-slate-500">次のアクション:</span> <span className="text-slate-700">{r.nextAction}</span></p>}
-                      {r.deliverableUrl && <p className="col-span-2"><span className="font-medium text-slate-500">成果物: </span><a href={r.deliverableUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.deliverableUrl}</a></p>}
-                    </div>
-                  </div>
+                    {r.content && <p className="mt-2 line-clamp-1 text-sm text-slate-500">{r.content}</p>}
+                  </button>
                 ))}
               </div>
             )}
@@ -372,26 +412,27 @@ function MemberDetail({ memberId }: { memberId: string }) {
             {memberOjts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center"><p className="text-sm text-slate-400">OJT記録がまだありません。</p></div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {memberOjts.map((r) => {
                   const progCls: Record<OjtProgress, string> = { 未着手: "bg-slate-100 text-slate-600", 作業中: "bg-blue-100 text-blue-700", レビュー中: "bg-amber-100 text-amber-700", 完了: "bg-emerald-100 text-emerald-700" };
-                  const diffCls: Record<OjtDifficulty, string> = { 低: "text-slate-500", 中: "text-amber-600", 高: "text-red-600" };
                   return (
-                    <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="mb-2 flex items-start justify-between gap-2">
-                        <div><p className="text-sm font-semibold text-slate-900">{r.taskName}</p><p className="text-xs text-slate-400">{r.recordedAt} · {r.projectName} · レビュー担当: {r.reviewer || "—"}</p></div>
-                        <div className="flex flex-shrink-0 items-center gap-1.5">
-                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${progCls[r.progress]}`}>{r.progress}</span>
-                          <span className={`text-xs font-semibold ${diffCls[r.difficulty]}`}>難易度: {r.difficulty}</span>
+                    <button
+                      key={r.id}
+                      onClick={() => setEditingOjt(r)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900">{r.taskName}</p>
+                          <p className="mt-0.5 text-sm text-slate-400">{r.recordedAt} · {r.projectName}</p>
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${progCls[r.progress]}`}>{r.progress}</span>
+                          <svg className="h-4 w-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                        {r.blocker && <p className="col-span-2"><span className="font-medium text-red-500">詰まり:</span> <span className="text-slate-700">{r.blocker}</span></p>}
-                        {r.feedback && <p><span className="font-medium text-slate-500">フィードバック:</span> <span className="text-slate-700">{r.feedback}</span></p>}
-                        {r.reviewerComment && <p><span className="font-medium text-slate-500">担当者評価:</span> <span className="text-slate-700">{r.reviewerComment}</span></p>}
-                        <p className="col-span-2"><span className="font-medium text-slate-500">本人理解度:</span> {r.selfUnderstandingLevel}/5</p>
-                      </div>
-                    </div>
+                      {r.blocker && <p className="mt-2 line-clamp-1 text-sm text-red-500">詰まり: {r.blocker}</p>}
+                    </button>
                   );
                 })}
               </div>
@@ -420,13 +461,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>明日やること</label><textarea value={rNext} onChange={(e) => setRNext(e.target.value)} rows={2} className={textareaCls} /></div>
-                    <div><label className={labelCls}>相談したいこと</label><textarea value={rConsult} onChange={(e) => setRConsult(e.target.value)} rows={2} placeholder="記入するとSlackアラートが届きます" className={textareaCls} /></div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    <ScoreSelect value={rCond} onChange={setRCond} label="今日の状態" />
-                    <ScoreSelect value={rWork} onChange={setRWork} label="業務負荷" />
-                    <ScoreSelect value={rIso} onChange={setRIso} label="孤立感" />
-                    <ScoreSelect value={rConf} onChange={setRConf} label="自信度" />
+                    <div><label className={labelCls}>相談したいこと</label><textarea value={rConsult} onChange={(e) => setRConsult(e.target.value)} rows={2} className={textareaCls} /></div>
                   </div>
                   <button onClick={handleAddReport} disabled={!rDid.trim()} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50">追加する</button>
                 </div>
@@ -435,26 +470,19 @@ function MemberDetail({ memberId }: { memberId: string }) {
             {memberReports.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center"><p className="text-sm text-slate-400">日報がまだありません。</p></div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {memberReports.map((r) => (
-                  <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-900">{r.reportedAt}</p>
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-slate-500">状態 <span className="font-semibold text-slate-800">{r.conditionScore}</span></span>
-                        <span className="text-slate-500">負荷 <span className="font-semibold text-slate-800">{r.workloadScore}</span></span>
-                        <span className="text-slate-500">孤立 <span className="font-semibold text-slate-800">{r.isolationScore}</span></span>
-                        <span className="text-slate-500">自信 <span className="font-semibold text-slate-800">{r.confidenceScore}</span></span>
-                      </div>
+                  <button
+                    key={r.id}
+                    onClick={() => setEditingReport(r)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-slate-900">{r.reportedAt}</p>
+                      {r.consultation && <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">相談あり</span>}
                     </div>
-                    <div className="space-y-1.5 text-xs">
-                      <p><span className="font-medium text-slate-500">今日やったこと: </span><span className="text-slate-700">{r.didToday}</span></p>
-                      {r.learned && <p><span className="font-medium text-slate-500">学んだこと: </span><span className="text-slate-700">{r.learned}</span></p>}
-                      {r.blocked && <p><span className="font-medium text-amber-600">詰まったこと: </span><span className="text-slate-700">{r.blocked}</span></p>}
-                      {r.nextPlan && <p><span className="font-medium text-slate-500">明日やること: </span><span className="text-slate-700">{r.nextPlan}</span></p>}
-                      {r.consultation && <p className="rounded-md bg-amber-50 px-2 py-1 text-amber-800"><span className="font-semibold">相談事項: </span>{r.consultation}</p>}
-                    </div>
-                  </div>
+                    <p className="mt-1 line-clamp-2 text-sm text-slate-500">{r.didToday}</p>
+                  </button>
                 ))}
               </div>
             )}
@@ -476,7 +504,16 @@ function MemberDetail({ memberId }: { memberId: string }) {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>面談日</label><input type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} className={inputCls} /></div>
-                    <div><label className={labelCls}>メンター <span className="text-red-500">*</span></label><input type="text" value={mMentor} onChange={(e) => setMMentor(e.target.value)} className={inputCls} /></div>
+                    <div>
+                      <label className={labelCls}>メンター <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <select value={mMentor} onChange={(e) => setMMentor(e.target.value)} className={selectCls}>
+                          <option value="">未設定</option>
+                          {interviewers.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <SelectArrow />
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label className={labelCls}>業務面の状態</label><div className="relative"><select value={mWorkCond} onChange={(e) => setMWorkCond(e.target.value as MemberCondition)} className={selectCls}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
@@ -494,7 +531,6 @@ function MemberDetail({ memberId }: { memberId: string }) {
                         <label key={s} className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700">
                           <input type="radio" name="share" value={s} checked={mShare === s} onChange={() => setMShare(s)} className="accent-blue-600" />
                           {s}
-                          {s === "必要" && <span className="text-xs text-slate-400">（Slackに通知されます）</span>}
                         </label>
                       ))}
                     </div>
@@ -506,48 +542,296 @@ function MemberDetail({ memberId }: { memberId: string }) {
             {memberMeetings.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center"><p className="text-sm text-slate-400">面談記録がまだありません。</p></div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {memberMeetings.map((m) => (
-                  <div key={m.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <div><p className="text-sm font-semibold text-slate-900">{m.meetingAt}</p><p className="text-xs text-slate-400">メンター: {m.mentor}</p></div>
+                  <button
+                    key={m.id}
+                    onClick={() => setEditingMeeting(m)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-slate-900">{m.meetingAt}</p>
+                        <p className="mt-0.5 text-sm text-slate-400">メンター: {m.mentor}</p>
+                      </div>
                       <div className="flex flex-shrink-0 items-center gap-1.5">
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[m.workCondition]}`}>{m.workCondition}</span>
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[m.risk]}`}>リスク: {m.risk}</span>
                         {m.shareWithManager === "必要" && <span className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">上長共有</span>}
+                        <svg className="h-4 w-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </div>
                     </div>
-                    <div className="space-y-1.5 text-xs">
-                      {m.consultation && <p><span className="font-medium text-slate-500">相談内容: </span><span className="text-slate-700">{m.consultation}</span></p>}
-                      {m.mentorComment && <p><span className="font-medium text-slate-500">メンターコメント: </span><span className="text-slate-700">{m.mentorComment}</span></p>}
-                      {m.nextAction && <p><span className="font-medium text-slate-500">次のアクション: </span><span className="text-slate-700">{m.nextAction}</span></p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Slack通知 */}
-        {activeTab === "Slack通知" && (
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-slate-900">Slack通知履歴 <span className="ml-1 text-xs font-normal text-slate-400">({memberSlacks.length}件)</span></p>
-            {memberSlacks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center"><p className="text-sm text-slate-400">通知履歴がありません。</p></div>
-            ) : (
-              <div className="space-y-2">
-                {memberSlacks.map((n) => (
-                  <div key={n.id} className="rounded-lg bg-slate-50 px-4 py-3 text-xs">
-                    <div className="mb-1 flex items-center justify-between text-slate-400"><span className="font-medium">{n.channel}</span><span>{n.sentAt}</span></div>
-                    <p className="text-slate-700">{n.message}</p>
-                  </div>
+                    {m.consultation && <p className="mt-2 line-clamp-1 text-sm text-slate-500">相談: {m.consultation}</p>}
+                  </button>
                 ))}
               </div>
             )}
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      {editingTraining && (
+        <TrainingModal
+          record={editingTraining}
+          onClose={() => setEditingTraining(null)}
+          onSave={(r) => { updateTrainingRecord(r); setEditingTraining(null); }}
+          onDelete={(id) => { deleteTrainingRecord(id); setEditingTraining(null); }}
+        />
+      )}
+      {editingOjt && (
+        <OjtModal
+          record={editingOjt}
+          onClose={() => setEditingOjt(null)}
+          onSave={(r) => { updateOjtRecord(r); setEditingOjt(null); }}
+          onDelete={(id) => { deleteOjtRecord(id); setEditingOjt(null); }}
+        />
+      )}
+      {editingReport && (
+        <ReportModal
+          record={editingReport}
+          onClose={() => setEditingReport(null)}
+          onSave={(r) => { updateDailyReport(r); setEditingReport(null); }}
+          onDelete={(id) => { deleteDailyReport(id); setEditingReport(null); }}
+        />
+      )}
+      {editingMeeting && (
+        <MeetingModal
+          record={editingMeeting}
+          interviewers={interviewers}
+          onClose={() => setEditingMeeting(null)}
+          onSave={(m) => { updateMentorMeeting(m); setEditingMeeting(null); }}
+          onDelete={(id) => { deleteMentorMeeting(id); setEditingMeeting(null); }}
+        />
+      )}
     </div>
+  );
+}
+
+// ---------- Edit Modals ----------
+
+function TrainingModal({ record, onClose, onSave, onDelete }: {
+  record: TrainingRecord;
+  onClose: () => void;
+  onSave: (r: TrainingRecord) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [name, setName] = useState(record.trainingName);
+  const [date, setDate] = useState(record.trainedAt);
+  const [trainer, setTrainer] = useState(record.trainer);
+  const [content, setContent] = useState(record.content);
+  const [level, setLevel] = useState<1|2|3|4|5>(record.understandingLevel);
+  const [url, setUrl] = useState(record.deliverableUrl);
+  const [good, setGood] = useState(record.goodPoint);
+  const [issue, setIssue] = useState(record.issuePoint);
+  const [next, setNext] = useState(record.nextAction);
+
+  const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+  const selectCls = "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-white";
+  const labelCls = "mb-1 block text-xs font-medium text-slate-500";
+  const textareaCls = `${inputCls} resize-none`;
+
+  return (
+    <Modal title="研修記録の編集" onClose={onClose}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>研修名</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>実施日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>担当者</label><input type="text" value={trainer} onChange={(e) => setTrainer(e.target.value)} className={inputCls} /></div>
+          <div>
+            <label className={labelCls}>理解度 (1〜5)</label>
+            <div className="relative"><select value={level} onChange={(e) => setLevel(Number(e.target.value) as 1|2|3|4|5)} className={selectCls}>{([1,2,3,4,5] as const).map((n) => <option key={n} value={n}>{n}</option>)}</select><SelectArrow /></div>
+          </div>
+        </div>
+        <div><label className={labelCls}>実施内容</label><textarea value={content} onChange={(e) => setContent(e.target.value)} rows={3} className={textareaCls} /></div>
+        <div><label className={labelCls}>成果物URL</label><input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inputCls} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>良かった点</label><textarea value={good} onChange={(e) => setGood(e.target.value)} rows={3} className={textareaCls} /></div>
+          <div><label className={labelCls}>課題点</label><textarea value={issue} onChange={(e) => setIssue(e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+        <div><label className={labelCls}>次のアクション</label><input type="text" value={next} onChange={(e) => setNext(e.target.value)} className={inputCls} /></div>
+        <div className="flex items-center justify-between pt-2">
+          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
+            <button onClick={() => onSave({ ...record, trainingName: name, trainedAt: date, trainer, content, understandingLevel: level, deliverableUrl: url, goodPoint: good, issuePoint: issue, nextAction: next })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function OjtModal({ record, onClose, onSave, onDelete }: {
+  record: OjtRecord;
+  onClose: () => void;
+  onSave: (r: OjtRecord) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [project, setProject] = useState(record.projectName);
+  const [task, setTask] = useState(record.taskName);
+  const [date, setDate] = useState(record.recordedAt);
+  const [diff, setDiff] = useState<OjtDifficulty>(record.difficulty);
+  const [prog, setProg] = useState<OjtProgress>(record.progress);
+  const [reviewer, setReviewer] = useState(record.reviewer);
+  const [blocker, setBlocker] = useState(record.blocker);
+  const [feedback, setFeedback] = useState(record.feedback);
+  const [self, setSelf] = useState<1|2|3|4|5>(record.selfUnderstandingLevel);
+  const [comment, setComment] = useState(record.reviewerComment);
+
+  const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+  const selectCls = "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-white";
+  const labelCls = "mb-1 block text-xs font-medium text-slate-500";
+  const textareaCls = `${inputCls} resize-none`;
+
+  return (
+    <Modal title="OJT記録の編集" onClose={onClose}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>プロジェクト名</label><input type="text" value={project} onChange={(e) => setProject(e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>記録日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
+        </div>
+        <div><label className={labelCls}>担当タスク</label><input type="text" value={task} onChange={(e) => setTask(e.target.value)} className={inputCls} /></div>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className={labelCls}>難易度</label><div className="relative"><select value={diff} onChange={(e) => setDiff(e.target.value as OjtDifficulty)} className={selectCls}>{(["低","中","高"] as OjtDifficulty[]).map((d) => <option key={d} value={d}>{d}</option>)}</select><SelectArrow /></div></div>
+          <div><label className={labelCls}>進捗</label><div className="relative"><select value={prog} onChange={(e) => setProg(e.target.value as OjtProgress)} className={selectCls}>{(["未着手","作業中","レビュー中","完了"] as OjtProgress[]).map((p) => <option key={p} value={p}>{p}</option>)}</select><SelectArrow /></div></div>
+          <div><label className={labelCls}>レビュー担当</label><input type="text" value={reviewer} onChange={(e) => setReviewer(e.target.value)} className={inputCls} /></div>
+        </div>
+        <div><label className={labelCls}>詰まっているポイント</label><textarea value={blocker} onChange={(e) => setBlocker(e.target.value)} rows={2} className={textareaCls} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>フィードバック</label><textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} className={textareaCls} /></div>
+          <div><label className={labelCls}>担当者評価</label><textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+        <div><label className={labelCls}>本人の理解度 (1〜5)</label><div className="relative w-32"><select value={self} onChange={(e) => setSelf(Number(e.target.value) as 1|2|3|4|5)} className={selectCls}>{([1,2,3,4,5] as const).map((n) => <option key={n} value={n}>{n}</option>)}</select><SelectArrow /></div></div>
+        <div className="flex items-center justify-between pt-2">
+          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
+            <button onClick={() => onSave({ ...record, projectName: project, taskName: task, recordedAt: date, difficulty: diff, progress: prog, reviewer, blocker, feedback, selfUnderstandingLevel: self, reviewerComment: comment })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ReportModal({ record, onClose, onSave, onDelete }: {
+  record: DailyReport;
+  onClose: () => void;
+  onSave: (r: DailyReport) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [date, setDate] = useState(record.reportedAt);
+  const [did, setDid] = useState(record.didToday);
+  const [learned, setLearned] = useState(record.learned);
+  const [blocked, setBlocked] = useState(record.blocked);
+  const [next, setNext] = useState(record.nextPlan);
+  const [consult, setConsult] = useState(record.consultation);
+
+  const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+  const labelCls = "mb-1 block text-xs font-medium text-slate-500";
+  const textareaCls = `${inputCls} resize-none`;
+
+  return (
+    <Modal title="日報の編集" onClose={onClose}>
+      <div className="space-y-3">
+        <div><label className={labelCls}>日付</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" /></div>
+        <div><label className={labelCls}>今日やったこと</label><textarea value={did} onChange={(e) => setDid(e.target.value)} rows={4} className={textareaCls} /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>学んだこと</label><textarea value={learned} onChange={(e) => setLearned(e.target.value)} rows={3} className={textareaCls} /></div>
+          <div><label className={labelCls}>詰まったこと</label><textarea value={blocked} onChange={(e) => setBlocked(e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>明日やること</label><textarea value={next} onChange={(e) => setNext(e.target.value)} rows={3} className={textareaCls} /></div>
+          <div><label className={labelCls}>相談したいこと</label><textarea value={consult} onChange={(e) => setConsult(e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
+            <button onClick={() => onSave({ ...record, reportedAt: date, didToday: did, learned, blocked, nextPlan: next, consultation: consult })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function MeetingModal({ record, interviewers, onClose, onSave, onDelete }: {
+  record: MentorMeeting;
+  interviewers: string[];
+  onClose: () => void;
+  onSave: (m: MentorMeeting) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [date, setDate] = useState(record.meetingAt);
+  const [mentor, setMentor] = useState(record.mentor);
+  const [workCond, setWorkCond] = useState<MemberCondition>(record.workCondition);
+  const [mentalCond, setMentalCond] = useState<MemberCondition>(record.mentalCondition);
+  const [consult, setConsult] = useState(record.consultation);
+  const [comment, setComment] = useState(record.mentorComment);
+  const [nextAction, setNextAction] = useState(record.nextAction);
+  const [share, setShare] = useState<ShareWithManager>(record.shareWithManager);
+
+  const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
+  const selectCls = "w-full appearance-none rounded-lg border border-slate-300 pl-3 pr-9 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors bg-white";
+  const labelCls = "mb-1 block text-xs font-medium text-slate-500";
+  const textareaCls = `${inputCls} resize-none`;
+
+  function handleSave() {
+    const derivedRisk: RetentionRisk =
+      workCond === "要対応" || mentalCond === "要対応" ? "高"
+      : workCond === "不安あり" || mentalCond === "不安あり" ? "中"
+      : "低";
+    onSave({ ...record, meetingAt: date, mentor, workCondition: workCond, mentalCondition: mentalCond, consultation: consult, mentorComment: comment, nextAction, shareWithManager: share, risk: derivedRisk });
+  }
+
+  return (
+    <Modal title="面談記録の編集" onClose={onClose}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>面談日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
+          <div>
+            <label className={labelCls}>メンター</label>
+            <div className="relative">
+              <select value={mentor} onChange={(e) => setMentor(e.target.value)} className={selectCls}>
+                <option value="">未設定</option>
+                {interviewers.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <SelectArrow />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>業務面の状態</label><div className="relative"><select value={workCond} onChange={(e) => setWorkCond(e.target.value as MemberCondition)} className={selectCls}>{(["良好","普通","不安あり","要対応"] as MemberCondition[]).map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
+          <div><label className={labelCls}>メンタル面の状態</label><div className="relative"><select value={mentalCond} onChange={(e) => setMentalCond(e.target.value as MemberCondition)} className={selectCls}>{(["良好","普通","不安あり","要対応"] as MemberCondition[]).map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={labelCls}>相談内容</label><textarea value={consult} onChange={(e) => setConsult(e.target.value)} rows={3} className={textareaCls} /></div>
+          <div><label className={labelCls}>メンターコメント</label><textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className={textareaCls} /></div>
+        </div>
+        <div><label className={labelCls}>次のアクション</label><input type="text" value={nextAction} onChange={(e) => setNextAction(e.target.value)} className={inputCls} /></div>
+        <div>
+          <label className={labelCls}>上長共有</label>
+          <div className="flex gap-3">
+            {(["不要","必要"] as ShareWithManager[]).map((s) => (
+              <label key={s} className="flex cursor-pointer items-center gap-1.5 text-sm text-slate-700">
+                <input type="radio" value={s} checked={share === s} onChange={() => setShare(s)} className="accent-blue-600" />
+                {s}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
+            <button onClick={handleSave} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }

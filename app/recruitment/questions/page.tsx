@@ -164,7 +164,6 @@ export default function QuestionsPage() {
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STAGE_DOT[stage] ?? "bg-slate-400"}`} aria-hidden="true" />
                   {stage}
                 </div>
                 <span className={`text-xs font-semibold tabular-nums ${isActive ? "text-blue-600" : "text-slate-400"}`}>{count}</span>
@@ -278,7 +277,6 @@ export default function QuestionsPage() {
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <span className={`h-2.5 w-2.5 rounded-full ${STAGE_DOT[activeStage] ?? "bg-slate-400"}`} aria-hidden="true" />
               <h2 className="text-base font-semibold text-slate-900">{activeStage}</h2>
               <span className="text-sm text-slate-400 tabular-nums">{filtered.length}件</span>
             </div>
@@ -316,7 +314,7 @@ export default function QuestionsPage() {
               <button
                 onClick={() => setActiveTag("すべて")}
                 aria-pressed={activeTag === "すべて"}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1 ${
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1 ${
                   activeTag === "すべて"
                     ? "border-slate-700 bg-slate-700 text-white"
                     : "border-slate-300 bg-white text-slate-600 hover:border-slate-400"
@@ -330,9 +328,9 @@ export default function QuestionsPage() {
                 return (
                   <button
                     key={tag}
-                    onClick={() => setActiveTag(isActive ? "すべて" : tag)}
+                    onClick={() => setActiveTag(tag)}
                     aria-pressed={isActive}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
                       isActive
                         ? `${color} outline outline-2 outline-blue-500 outline-offset-1`
                         : "border border-slate-300 bg-white text-slate-500 hover:border-slate-400"
@@ -407,13 +405,13 @@ export default function QuestionsPage() {
                       {q.tags.map((tag) => (
                         <span
                           key={tag}
-                          className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${TAG_COLORS[tag] ?? "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"}`}
+                          className={`rounded-md px-2 py-0.5 text-xs font-medium ${TAG_COLORS[tag] ?? "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-300/60"}`}
                         >
                           {tag}
                         </span>
                       ))}
                       {q.required && (
-                        <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
+                        <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">
                           必須
                         </span>
                       )}
@@ -423,7 +421,7 @@ export default function QuestionsPage() {
                         <button
                           onClick={() => setOpenAnswerId(openAnswerId === q.id ? null : q.id)}
                           aria-expanded={openAnswerId === q.id}
-                          className="flex items-center gap-1.5 rounded text-xs font-medium text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
+                          className="flex items-center gap-1.5 rounded text-sm font-medium text-blue-700 transition-colors hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
                         >
                           <svg
                             className={`h-3.5 w-3.5 transition-transform ${openAnswerId === q.id ? "rotate-90" : ""}`}
@@ -435,7 +433,7 @@ export default function QuestionsPage() {
                         </button>
                         {openAnswerId === q.id && (
                           <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-                            <p className="mb-1.5 text-xs font-semibold text-blue-800">評価ガイド</p>
+                            <p className="mb-1.5 text-sm font-semibold text-blue-800">評価ガイド</p>
                             <p className="whitespace-pre-wrap text-sm leading-relaxed text-blue-900">{q.modelAnswer}</p>
                           </div>
                         )}
@@ -453,6 +451,7 @@ export default function QuestionsPage() {
                       }`}
                     >
                       {q.required ? "必須" : "必須にする"}
+
                     </button>
                     <button
                       onClick={() => handleCopy(q)}
