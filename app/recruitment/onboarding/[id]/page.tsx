@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useOnboarding } from "../context";
@@ -20,6 +20,8 @@ import type {
 
 type Tab = "基本情報" | "研修記録" | "OJT記録" | "日報" | "面談記録";
 const TABS: Tab[] = ["基本情報", "研修記録", "OJT記録", "日報", "面談記録"];
+type RecordTab = Exclude<Tab, "基本情報">;
+const RECORD_TABS: RecordTab[] = ["研修記録", "OJT記録", "日報", "面談記録"];
 
 const CONDITION_OPTIONS: MemberCondition[] = ["良好", "普通", "不安あり", "要対応"];
 const STATUS_OPTIONS: OnboardingStatus[] = ["未開始", "進行中", "完了"];
@@ -57,6 +59,10 @@ function SelectArrow() {
 }
 
 function today() { return new Date().toISOString().slice(0, 10); }
+
+function getViewedTabsKey(memberId: string) {
+  return `onboarding-viewed-tabs-v1:${memberId}`;
+}
 
 // ---------- Modal ----------
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -123,6 +129,60 @@ function MemberDetail({ memberId }: { memberId: string }) {
   const memberOjts = ojtRecords.filter((r) => r.memberId === memberId).sort((a, b) => b.recordedAt.localeCompare(a.recordedAt));
   const memberReports = dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
   const memberMeetings = mentorMeetings.filter((r) => r.memberId === memberId).sort((a, b) => b.meetingAt.localeCompare(a.meetingAt));
+  const tabRecordCounts = useMemo<Record<RecordTab, number>>(
+    () => ({
+      研修記録: memberTrainings.length,
+      OJT記録: memberOjts.length,
+      日報: memberReports.length,
+      面談記録: memberMeetings.length,
+    }),
+    [memberMeetings.length, memberOjts.length, memberReports.length, memberTrainings.length]
+  );
+  const [viewedTabCounts, setViewedTabCounts] = useState<Record<RecordTab, number> | null>(null);
+
+  useEffect(() => {
+    const storageKey = getViewedTabsKey(memberId);
+
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<Record<RecordTab, number>>;
+        setViewedTabCounts({
+          研修記録: typeof parsed.研修記録 === "number" ? parsed.研修記録 : tabRecordCounts.研修記録,
+          OJT記録: typeof parsed.OJT記録 === "number" ? parsed.OJT記録 : tabRecordCounts.OJT記録,
+          日報: typeof parsed.日報 === "number" ? parsed.日報 : tabRecordCounts.日報,
+          面談記録: typeof parsed.面談記録 === "number" ? parsed.面談記録 : tabRecordCounts.面談記録,
+        });
+        return;
+      }
+    } catch {}
+
+    setViewedTabCounts(tabRecordCounts);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(tabRecordCounts));
+    } catch {}
+  }, [memberId, tabRecordCounts]);
+
+  useEffect(() => {
+    if (!viewedTabCounts || activeTab === "基本情報") return;
+
+    const next = {
+      ...viewedTabCounts,
+      [activeTab]: tabRecordCounts[activeTab],
+    };
+
+    if (next[activeTab] === viewedTabCounts[activeTab]) return;
+
+    setViewedTabCounts(next);
+    try {
+      window.localStorage.setItem(getViewedTabsKey(memberId), JSON.stringify(next));
+    } catch {}
+  }, [activeTab, memberId, tabRecordCounts, viewedTabCounts]);
+
+  function hasUnseenUpdate(tab: Tab) {
+    if (tab === "基本情報" || !viewedTabCounts) return false;
+    return tabRecordCounts[tab] > viewedTabCounts[tab];
+  }
 
   // Add form state
   const [showTForm, setShowTForm] = useState(false);
@@ -225,24 +285,22 @@ function MemberDetail({ memberId }: { memberId: string }) {
       {/* Tabs */}
       <div className="flex border-b border-slate-100 bg-white px-6" role="tablist">
         {TABS.map((tab) => {
-          const counts: Partial<Record<Tab, number>> = {
-            "研修記録": memberTrainings.length,
-            "OJT記録": memberOjts.length,
-            "日報": memberReports.length,
-            "面談記録": memberMeetings.length,
-          };
-          const count = counts[tab];
+          const hasUpdate = hasUnseenUpdate(tab);
           return (
             <button
               key={tab}
               role="tab"
               aria-selected={activeTab === tab}
+              aria-label={hasUpdate ? `${tab}、未確認の更新があります` : tab}
               onClick={() => setActiveTab(tab)}
-              className={`mr-5 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
+              className={`relative mr-5 border-b-2 py-3 pr-2 text-sm font-medium transition-colors focus-visible:outline-none ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
             >
               {tab}
-              {count != null && count > 0 && (
-                <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">{count}</span>
+              {hasUpdate && (
+                <span
+                  className="absolute right-0 top-3 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white"
+                  aria-hidden="true"
+                />
               )}
             </button>
           );
@@ -317,7 +375,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
         {activeTab === "研修記録" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">研修記録 <span className="ml-1 text-xs font-normal text-slate-400">({memberTrainings.length}件)</span></p>
+              <p className="text-sm font-semibold text-slate-900">研修記録</p>
               <button onClick={() => setShowTForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
                 {showTForm ? "キャンセル" : "+ 記録を追加"}
               </button>
@@ -380,7 +438,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
         {activeTab === "OJT記録" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">OJT記録 <span className="ml-1 text-xs font-normal text-slate-400">({memberOjts.length}件)</span></p>
+              <p className="text-sm font-semibold text-slate-900">OJT記録</p>
               <button onClick={() => setShowOForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
                 {showOForm ? "キャンセル" : "+ 記録を追加"}
               </button>
@@ -444,7 +502,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
         {activeTab === "日報" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">日報 <span className="ml-1 text-xs font-normal text-slate-400">({memberReports.length}件)</span></p>
+              <p className="text-sm font-semibold text-slate-900">日報</p>
               <button onClick={() => setShowRForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
                 {showRForm ? "キャンセル" : "+ 日報を追加"}
               </button>
@@ -493,7 +551,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
         {activeTab === "面談記録" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-900">面談記録 <span className="ml-1 text-xs font-normal text-slate-400">({memberMeetings.length}件)</span></p>
+              <p className="text-sm font-semibold text-slate-900">面談記録</p>
               <button onClick={() => setShowMForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
                 {showMForm ? "キャンセル" : "+ 記録を追加"}
               </button>
