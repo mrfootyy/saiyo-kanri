@@ -1,15 +1,12 @@
 import { AuthGate } from "../auth/AuthGate";
 import { RecruitmentProvider } from "./context";
-import Sidebar from "./components/Sidebar";
+import Shell from "./components/Shell";
 
 export default function RecruitmentLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGate>
       <RecruitmentProvider>
-        <div className="flex h-dvh overflow-hidden bg-slate-50">
-          <Sidebar />
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-slate-50">{children}</main>
-        </div>
+        <Shell>{children}</Shell>
       </RecruitmentProvider>
     </AuthGate>
   );

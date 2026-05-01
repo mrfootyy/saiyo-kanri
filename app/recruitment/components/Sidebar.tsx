@@ -15,7 +15,7 @@ type MenuItem = {
   badge?: number;
 };
 
-export default function Sidebar() {
+export default function Sidebar({ onMobileClose }: { onMobileClose?: () => void }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { candidates, interviewStages, emailHistories } = useRecruitment();
@@ -110,36 +110,48 @@ export default function Sidebar() {
     return pathname === item.href;
   }
 
+  const isMobile = !!onMobileClose;
+
   return (
     <aside
       className={`flex h-full flex-shrink-0 flex-col border-r border-slate-200 bg-white transition-all duration-200 ${
-        collapsed ? "w-[60px]" : "w-56"
+        isMobile ? "w-64" : collapsed ? "w-[60px]" : "w-56"
       }`}
       aria-label="メインナビゲーション"
     >
-      <div className={`flex items-center border-b border-slate-100 ${collapsed ? "flex-col gap-2 px-2 py-3.5" : "justify-between px-4 py-3.5"}`}>
-        {!collapsed && (
-          <div>
-            <p className="text-sm font-semibold leading-tight text-slate-900">採用管理</p>
-            <p className="text-[11px] leading-tight text-slate-400">株式会社ガジェログ</p>
-          </div>
-        )}
+      <div className={`flex items-center border-b border-slate-100 ${(!isMobile && collapsed) ? "flex-col gap-2 px-2 py-3.5" : "justify-between px-4 py-3.5"}`}>
+        <div>
+          <p className="text-sm font-semibold leading-tight text-slate-900">採用管理</p>
+          {(!isMobile && !collapsed) && <p className="text-[11px] leading-tight text-slate-400">株式会社ガジェログ</p>}
+        </div>
 
-        <button
-          onClick={() => setCollapsed((v) => !v)}
-          aria-label={collapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"}
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
-        >
-          {collapsed ? (
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        {isMobile ? (
+          <button
+            onClick={onMobileClose}
+            aria-label="メニューを閉じる"
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          ) : (
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-            </svg>
-          )}
-        </button>
+          </button>
+        ) : (
+          <button
+            onClick={() => setCollapsed((v) => !v)}
+            aria-label={collapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"}
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+          >
+            {collapsed ? (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">
@@ -153,7 +165,7 @@ export default function Sidebar() {
                   aria-label={collapsed ? item.label : undefined}
                   aria-current={active ? "page" : undefined}
                   className={`flex w-full items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
-                    collapsed ? "justify-center" : "gap-3"
+                    (!isMobile && collapsed) ? "justify-center" : "gap-3"
                   } ${
                     active
                       ? "bg-blue-50 text-blue-700"
@@ -171,8 +183,8 @@ export default function Sidebar() {
                       </span>
                     )}
                   </span>
-                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {!collapsed && item.badge && item.badge > 0 && (
+                  {(isMobile || !collapsed) && <span className="flex-1 truncate">{item.label}</span>}
+                  {(isMobile || !collapsed) && item.badge && item.badge > 0 && (
                     <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700" aria-hidden="true">
                       {item.badge}
                     </span>

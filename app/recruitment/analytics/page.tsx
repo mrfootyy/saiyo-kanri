@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRecruitment } from "../context";
 import { ACTIVE_STATUSES, DEFAULT_POSITION_OPTION } from "../constants";
 import { Candidate, CandidateStatus, HireGoal } from "../types";
@@ -38,6 +38,27 @@ function Card({ title, action, children }: { title: string; action?: React.React
   );
 }
 
+const AI_CACHE_KEY = "recruitment_ai_insights";
+const AI_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 1週間
+
+function loadCachedInsights(): { insights: string[]; cachedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(AI_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { insights: string[]; cachedAt: number };
+    if (Date.now() - parsed.cachedAt < AI_CACHE_TTL_MS) return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedInsights(insights: string[]) {
+  try {
+    localStorage.setItem(AI_CACHE_KEY, JSON.stringify({ insights, cachedAt: Date.now() }));
+  } catch {}
+}
+
 export default function AnalyticsPage() {
   const { candidates, interviewers, positionOptions, hireGoals, setHireGoals } = useRecruitment();
   const [editingGoals, setEditingGoals] = useState(false);
@@ -50,6 +71,10 @@ export default function AnalyticsPage() {
   const [statusFilter, setStatusFilter] = useState("すべて");
   const [interviewerFilter, setInterviewerFilter] = useState("すべて");
   const [sortKey, setSortKey] = useState<SortKey>("stale");
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiCachedAt, setAiCachedAt] = useState<number | null>(null);
 
   const activeCandidates = useMemo(() => candidates.filter((candidate) => !candidate.archivedAt), [candidates]);
 
@@ -115,6 +140,44 @@ export default function AnalyticsPage() {
     { label: "評価未完了", value: durationStats.pendingEvaluations, unit: "件", text: "text-slate-700" },
   ];
 
+  // 起動時にキャッシュ読み込み
+  useEffect(() => {
+    const cached = loadCachedInsights();
+    if (cached) {
+      setAiInsights(cached.insights);
+      setAiCachedAt(cached.cachedAt);
+    }
+  }, []);
+
+  const fetchAiInsights = useCallback(async () => {
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const stats = {
+        totalCandidates: filteredCandidates.length,
+        statusCounts,
+        sourceStats,
+        stageStats,
+        durationStats,
+        hireGoals,
+      };
+      const res = await fetch("/api/recruitment-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stats }),
+      });
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json() as { insights: string[] };
+      setAiInsights(data.insights);
+      setAiCachedAt(Date.now());
+      saveCachedInsights(data.insights);
+    } catch {
+      setAiError("分析の取得に失敗しました。再試行してください。");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [filteredCandidates.length, statusCounts, sourceStats, stageStats, durationStats, hireGoals]);
+
   function saveGoals() {
     setHireGoals(goalDraft);
     setEditingGoals(false);
@@ -131,7 +194,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">採用分析</h1>
@@ -139,9 +202,13 @@ export default function AnalyticsPage() {
         </div>
         <button
           onClick={resetFilters}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+          aria-label="条件をリセット"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
         >
-          条件をリセット
+          <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span className="hidden sm:inline">条件をリセット</span>
         </button>
       </div>
 
@@ -172,7 +239,7 @@ export default function AnalyticsPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {summaryCards.map((card) => (
           <div key={card.label} className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs font-medium text-slate-500">{card.label}</p>
@@ -184,17 +251,68 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {insightItems.length > 0 && (
-        <Card title="分析メモ">
+      <Card
+        title="AI分析"
+        action={
+          <div className="flex items-center gap-3">
+            {aiCachedAt && (
+              <span className="text-xs text-slate-400">
+                {new Date(aiCachedAt).toLocaleDateString("ja-JP")} 生成
+              </span>
+            )}
+            <button
+              onClick={fetchAiInsights}
+              disabled={aiLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              {aiLoading ? (
+                <>
+                  <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  分析中…
+                </>
+              ) : (
+                <>
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {aiInsights.length > 0 ? "再分析" : "AI分析を実行"}
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        {aiLoading && aiInsights.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400">
+            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            AIが採用データを分析しています…
+          </div>
+        ) : aiError ? (
+          <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">{aiError}</div>
+        ) : aiInsights.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-3">
-            {insightItems.map((item) => (
-              <div key={item} className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-relaxed text-blue-900">
-                {item}
+            {aiInsights.map((item, i) => (
+              <div key={i} className="flex gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-relaxed text-blue-900">
+                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{i + 1}</span>
+                <p>{item}</p>
               </div>
             ))}
           </div>
-        </Card>
-      )}
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+            <svg className="h-8 w-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            <p className="text-sm text-slate-400">「AI分析を実行」で採用データのインサイトを生成します。<br />結果は1週間キャッシュされます。</p>
+          </div>
+        )}
+      </Card>
 
       <Card title="選考ファネル">
         <div className="space-y-3">
@@ -316,28 +434,28 @@ export default function AnalyticsPage() {
 
       <Card
         title="停滞・対応優先候補"
-        action={<span className="text-xs text-slate-400">更新が古い選考中候補を優先表示</span>}
+        action={null}
       >
         {staleCandidates.length === 0 ? <Empty text="対応が必要な候補者はありません。" /> : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[380px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-semibold text-slate-500">
-                  <th className="px-3 py-2">候補者</th>
-                  <th className="px-3 py-2">職種</th>
-                  <th className="px-3 py-2">ステータス</th>
-                  <th className="px-3 py-2">最終更新</th>
-                  <th className="px-3 py-2 text-right">停滞</th>
+                  <th className="whitespace-nowrap px-3 py-2">候補者</th>
+                  <th className="whitespace-nowrap px-3 py-2">職種</th>
+                  <th className="whitespace-nowrap px-3 py-2">ステータス</th>
+                  <th className="whitespace-nowrap px-3 py-2">最終更新</th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right">停滞</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {staleCandidates.slice(0, 8).map((candidate) => (
                   <tr key={candidate.id}>
-                    <td className="px-3 py-2 font-medium text-slate-800">{candidate.name}</td>
-                    <td className="px-3 py-2 text-slate-500">{candidate.position}</td>
-                    <td className="px-3 py-2 text-slate-500">{candidate.status}</td>
-                    <td className="px-3 py-2 text-slate-400">{candidate.updatedAt}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-slate-700">{candidate.staleDays}日</td>
+                    <td className="whitespace-nowrap px-3 py-2 font-medium text-slate-800">{candidate.name}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-500">{candidate.position}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-500">{candidate.status}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-400">{candidate.updatedAt}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-slate-700">{candidate.staleDays}日</td>
                   </tr>
                 ))}
               </tbody>
@@ -455,14 +573,15 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
 
 function BarRow({ label, valueLabel, rightLabel, pct, barClassName, compact = false }: { label: string; valueLabel: string; rightLabel: string; pct: number; barClassName: string; compact?: boolean }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className={`${compact ? "w-20" : "w-24"} flex-shrink-0 truncate text-right text-xs font-medium text-slate-500`}>{label}</span>
-      <div className={`${compact ? "h-4" : "h-7"} flex-1 overflow-hidden rounded bg-slate-100`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${label}: ${valueLabel}`}>
-        <div className={`flex h-full items-center px-2 ${barClassName} transition-all`} style={{ width: `${Math.max(pct, pct > 0 ? 2 : 0)}%` }}>
-          {!compact && <span className="text-xs font-semibold text-white">{valueLabel}</span>}
-        </div>
+    <div className="flex items-center gap-2">
+      <span className={`${compact ? "w-16 sm:w-20" : "w-16 sm:w-24"} flex-shrink-0 truncate text-right text-xs font-medium text-slate-500`}>{label}</span>
+      {!compact && (
+        <span className="w-8 flex-shrink-0 text-right text-xs font-semibold tabular-nums text-slate-700">{valueLabel}</span>
+      )}
+      <div className={`${compact ? "h-4" : "h-5"} flex-1 overflow-hidden rounded bg-slate-100`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${label}: ${valueLabel}`}>
+        <div className={`h-full ${barClassName} transition-all`} style={{ width: `${Math.max(pct, pct > 0 ? 2 : 0)}%` }} />
       </div>
-      <span className={`${compact ? "w-24" : "w-28"} flex-shrink-0 text-xs text-slate-400`}>{rightLabel}</span>
+      <span className="w-20 flex-shrink-0 truncate text-right text-xs text-slate-400 sm:w-28">{rightLabel}</span>
     </div>
   );
 }

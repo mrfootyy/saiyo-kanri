@@ -27,12 +27,12 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">設定</h1>
         <p className="mt-0.5 text-sm text-slate-500">システムの各種設定を管理します。</p>
       </div>
 
-      <div className="flex border-b border-slate-100 bg-white px-6" role="tablist" aria-label="設定タブ">
+      <div className="flex overflow-x-auto border-b border-slate-100 bg-white px-4 sm:px-6" role="tablist" aria-label="設定タブ">
         {(["面接官", "メールテンプレート", "Slack設定", "バックアップ"] as SettingsTab[]).map((tab) => (
           <button
             key={tab}
@@ -50,7 +50,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
         {activeTab === "面接官" && <InterviewersTab />}
         {activeTab === "メールテンプレート" && <EmailTemplatesTab />}
         {activeTab === "Slack設定" && <SlackSettingsTab />}
@@ -97,7 +97,7 @@ function InterviewersTab() {
           </div>
         </div>
 
-        <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4">
+        <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-6">
           <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <input
               type="text"
@@ -136,14 +136,14 @@ function InterviewersTab() {
         ) : (
           <ul className="divide-y divide-slate-100">
             {interviewers.map((name) => (
-              <li key={name} className="flex items-center justify-between gap-3 px-6 py-3.5">
+              <li key={name} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700" aria-hidden="true">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700" aria-hidden="true">
                     {name[0]}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <span className="text-sm font-medium text-slate-800">{name}</span>
-                    <p className="mt-0.5 text-xs text-slate-400">
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
                       {interviewerMentions[name]
                         ? `メンション: ${interviewerMentions[name].startsWith("<@") ? interviewerMentions[name] : `<@${interviewerMentions[name]}>`}`
                         : "メンションID未設定"}
@@ -157,12 +157,12 @@ function InterviewersTab() {
                     onChange={(e) => updateInterviewerMention(name, e.target.value)}
                     placeholder="U12345ABC"
                     aria-label={`${name}のSlackメンションID`}
-                    className="w-52 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 sm:w-52"
                   />
                   <button
                     onClick={() => removeInterviewer(name)}
                     aria-label={`${name}を削除`}
-                    className="rounded-md border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                    className="flex-shrink-0 rounded-md border border-slate-200 p-1.5 text-slate-400 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -231,12 +231,13 @@ function EmailTemplatesTab() {
         </div>
         <button
           onClick={openAdd}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          aria-label="テンプレートを追加"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:px-4"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          テンプレートを追加
+          <span className="hidden sm:inline">テンプレートを追加</span>
         </button>
       </div>
 
@@ -244,7 +245,7 @@ function EmailTemplatesTab() {
         <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold text-slate-900">{isAdding ? "新規テンプレート" : "テンプレートを編集"}</h3>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">テンプレート名</label>
                 <input
@@ -310,14 +311,14 @@ function EmailTemplatesTab() {
 
       <div className="space-y-3">
         {emailTemplates.map((t) => (
-          <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1">
-                <div className="mb-1.5 flex items-center gap-2">
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
                   <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${categoryColors[t.category]}`}>{t.category}</span>
                   <span className="text-sm font-semibold text-slate-900">{t.name}</span>
                 </div>
-                <p className="text-xs font-medium text-slate-600 mb-1">件名: {t.subject}</p>
+                <p className="mb-1 text-xs font-medium text-slate-600">件名: {t.subject}</p>
                 <p className="line-clamp-2 text-xs text-slate-400">{t.body}</p>
               </div>
               <div className="flex flex-shrink-0 items-center gap-1.5">

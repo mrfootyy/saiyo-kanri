@@ -129,7 +129,7 @@ export default function StageDetailPage() {
   return (
     <div className="flex h-full flex-col">
       {/* ページヘッダー */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
         <Link
           href={`/recruitment/candidates/${candidate.id}`}
           className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
@@ -193,7 +193,7 @@ export default function StageDetailPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
         {!accessible ? (
           <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-20 text-center shadow-sm">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">

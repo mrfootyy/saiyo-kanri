@@ -297,9 +297,9 @@ function CandidateDetail({
     getStatusForStageName(currentStage.name) !== "書類選考";
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       {/* ページヘッダー */}
-      <div className="border-b border-slate-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <Link
           href="/recruitment/candidates"
           className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
@@ -309,9 +309,9 @@ function CandidateDetail({
           </svg>
           応募者一覧
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight text-slate-900">{candidate.name}</h1>
               <StatusBadge status={syncedStatus} />
             </div>
@@ -347,14 +347,14 @@ function CandidateDetail({
       <StepFlowBar stages={interviewStages} records={records} manualStatus={syncedStatus} candidateId={candidate.id} />
 
       {/* タブ */}
-      <div className="flex border-b border-slate-100 bg-white px-6" role="tablist" aria-label="候補者情報タブ">
+      <div className="flex overflow-x-auto border-b border-slate-100 bg-white px-4 sm:px-6" role="tablist" aria-label="候補者情報タブ">
         {tabs.map((tab) => (
           <button
             key={tab}
             role="tab"
             aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
-            className={`mr-5 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-[-2px] ${
+            className={`mr-4 flex-shrink-0 whitespace-nowrap border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-[-2px] ${
               activeTab === tab
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-slate-400 hover:text-slate-700"
@@ -375,11 +375,11 @@ function CandidateDetail({
       </div>
 
       {/* コンテンツ */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="p-4 sm:p-6">
         {/* ── 基本情報 ── */}
         {activeTab === "基本情報" && (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>氏名</label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
@@ -408,7 +408,7 @@ function CandidateDetail({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>メールアドレス</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
@@ -419,7 +419,7 @@ function CandidateDetail({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <PositionSelect
                 value={position}
                 onChange={setPosition}
@@ -438,7 +438,7 @@ function CandidateDetail({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>スキル</label>
                 <input
@@ -701,9 +701,24 @@ function CandidateDetail({
               <button
                 type="button"
                 onClick={() => setShowQuestionPicker((v) => !v)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                aria-label={showQuestionPicker ? "選択を閉じる" : "質問を追加する"}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
               >
-                {showQuestionPicker ? "選択を閉じる" : "質問を追加する"}
+                {showQuestionPicker ? (
+                  <>
+                    <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span className="hidden sm:inline">選択を閉じる</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="hidden sm:inline">質問を追加する</span>
+                  </>
+                )}
               </button>
             </div>
 

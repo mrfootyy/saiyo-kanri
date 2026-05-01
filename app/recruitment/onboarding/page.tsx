@@ -140,14 +140,14 @@ export default function OnboardingPage() {
   return (
     <div className="flex h-full flex-col">
       {/* ヘッダー */}
-      <div className="border-b border-slate-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <h1 className="text-lg font-semibold text-slate-900">オンボーディング管理</h1>
         <p className="mt-0.5 text-xs text-slate-500">入社者の研修・OJT・状態を一元管理します</p>
       </div>
 
       {/* サマリーカード */}
-      <div className="border-b border-slate-100 bg-white px-6 py-4">
-        <div className="grid grid-cols-3 gap-4">
+      <div className="border-b border-slate-100 bg-white px-4 py-4 sm:px-6">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-500">入社者数</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">{totalCount}<span className="ml-1 text-sm font-normal text-slate-400">名</span></p>
@@ -164,30 +164,32 @@ export default function OnboardingPage() {
       </div>
 
       {/* 検索・追加 */}
-      <div className="border-b border-slate-100 bg-white px-6 py-3">
-        <div className="flex items-center gap-3">
+      <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="氏名・職種・メンター・OJT担当で検索"
-            className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors sm:max-w-md"
           />
           <button
             onClick={() => setShowAddForm((v) => !v)}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            aria-label={showAddForm ? "キャンセル" : "メンバーを追加"}
+            className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 sm:ml-auto sm:px-4"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {showAddForm ? "キャンセル" : "メンバーを追加"}
+            {showAddForm ? (
+              <><svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg><span className="hidden sm:inline">キャンセル</span></>
+            ) : (
+              <><svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg><span className="hidden sm:inline">メンバーを追加</span></>
+            )}
           </button>
         </div>
       </div>
 
       {/* 追加フォーム */}
       {showAddForm && (
-        <div className="border-b border-blue-100 bg-blue-50 px-6 py-4">
+        <div className="border-b border-blue-100 bg-blue-50 px-4 py-4 sm:px-6">
           <p className="mb-3 text-sm font-semibold text-slate-800">新しいメンバーを追加</p>
           <div className="mb-4 rounded-lg border border-blue-200 bg-white px-3 py-3">
             <label className={labelCls}>応募者から登録</label>
@@ -215,7 +217,7 @@ export default function OnboardingPage() {
             </div>
             <p className="mt-2 text-xs text-blue-700">応募者を選ぶと、氏名・職種・担当者を自動入力します。</p>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label className={labelCls}>氏名 <span className="text-red-500">*</span></label>
               <input type="text" value={aName} onChange={(e) => setAName(e.target.value)} placeholder="田中 花子" className={inputCls} />
@@ -264,89 +266,170 @@ export default function OnboardingPage() {
       )}
 
       {/* テーブル */}
-      <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+      <div className="min-h-0 flex-1 overflow-auto px-4 py-4 sm:px-6">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-slate-500">該当する入社者がいません。</p>
             <p className="mt-1 text-xs text-slate-400">検索条件やフィルターを変更してください。</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">氏名</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">職種</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">入社日</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">メンター</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">OJT担当</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">研修記録</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最新日報</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最終面談</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m, idx) => {
-                  const latestReport = getLatestReport(m.id);
-                  const latestMeeting = getLatestMeeting(m.id);
-                  const trainingCount = getTrainingCount(m.id);
-                  const hasConsultation = latestReport?.consultation?.trim();
-                  return (
-                    <tr
-                      key={m.id}
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/* ── モバイル: カードリスト ── */}
+            <div className="divide-y divide-slate-100 md:hidden">
+              {filtered.map((m) => {
+                const latestReport = getLatestReport(m.id);
+                const latestMeeting = getLatestMeeting(m.id);
+                const trainingCount = getTrainingCount(m.id);
+                const hasConsultation = latestReport?.consultation?.trim();
+                return (
+                  <div key={m.id}>
+                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                      <button
+                        className="flex items-center gap-2 text-left font-medium text-blue-600"
+                        onClick={() => router.push(`/recruitment/onboarding/${m.id}`)}
+                      >
+                        {m.name}
+                        {(m.condition === "不安あり" || m.condition === "要対応") && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="要フォロー" />
+                        )}
+                        <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.onboardingStatus]}`}>{m.onboardingStatus}</span>
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, m.id, m.name)}
+                        aria-label={`${m.name}を削除`}
+                        className="flex-shrink-0 rounded-md p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                    <dl
+                      className="cursor-pointer divide-y divide-slate-100 text-sm"
                       onClick={() => router.push(`/recruitment/onboarding/${m.id}`)}
-                      className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-blue-50 last:border-b-0 ${idx % 2 === 1 ? "bg-slate-50/30" : ""}`}
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 font-medium text-blue-600">
-                          {m.name}
-                          {(m.condition === "不安あり" || m.condition === "要対応") && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="要フォロー" />
-                          )}
+                      {[
+                        { label: "職種", value: m.position },
+                        { label: "入社日", value: m.joinedAt },
+                        { label: "メンター", value: m.mentor || "—" },
+                        { label: "OJT担当", value: m.ojtOwner || "—" },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex">
+                          <dt className="w-20 flex-shrink-0 bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500">{label}</dt>
+                          <dd className="flex-1 px-3 py-2.5 text-slate-600">{value}</dd>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{m.position}</td>
-                      <td className="px-4 py-3 text-slate-500">{m.joinedAt}</td>
-                      <td className="px-4 py-3 text-slate-600">{m.mentor || "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{m.ojtOwner || "—"}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.onboardingStatus]}`}>{m.onboardingStatus}</span>
+                      ))}
+                      <div className="flex">
+                        <dt className="w-20 flex-shrink-0 bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500">研修記録</dt>
+                        <dd className="flex flex-1 items-center gap-1.5 px-3 py-2.5">
                           {trainingCount > 0 && <span className="text-xs text-slate-400">{trainingCount}件</span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {latestReport ? (
-                          <div>
-                            <p className="text-xs text-slate-500">{latestReport.reportedAt}</p>
-                            {hasConsultation && (
-                              <span className="mt-0.5 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">相談あり</span>
+                        </dd>
+                      </div>
+                      <div className="flex">
+                        <dt className="w-20 flex-shrink-0 bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500">最新日報</dt>
+                        <dd className="flex-1 px-3 py-2.5">
+                          {latestReport ? (
+                            <div>
+                              <p className="text-xs text-slate-500">{latestReport.reportedAt}</p>
+                              {hasConsultation && (
+                                <span className="mt-0.5 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">相談あり</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-300">未提出</span>
+                          )}
+                        </dd>
+                      </div>
+                      <div className="flex">
+                        <dt className="w-20 flex-shrink-0 bg-slate-100 px-3 py-2.5 text-xs font-semibold text-slate-500">最終面談</dt>
+                        <dd className="flex-1 px-3 py-2.5 text-xs text-slate-500">
+                          {latestMeeting ? latestMeeting.meetingAt : <span className="text-slate-300">なし</span>}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── デスクトップ: テーブル ── */}
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">氏名</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">職種</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">入社日</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">メンター</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">OJT担当</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">研修記録</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最新日報</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500">最終面談</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((m, idx) => {
+                    const latestReport = getLatestReport(m.id);
+                    const latestMeeting = getLatestMeeting(m.id);
+                    const trainingCount = getTrainingCount(m.id);
+                    const hasConsultation = latestReport?.consultation?.trim();
+                    return (
+                      <tr
+                        key={m.id}
+                        onClick={() => router.push(`/recruitment/onboarding/${m.id}`)}
+                        className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-blue-50 last:border-b-0 ${idx % 2 === 1 ? "bg-slate-50/30" : ""}`}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 font-medium text-blue-600">
+                            {m.name}
+                            {(m.condition === "不安あり" || m.condition === "要対応") && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="要フォロー" />
                             )}
                           </div>
-                        ) : (
-                          <span className="text-xs text-slate-300">未提出</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-500">
-                        {latestMeeting ? latestMeeting.meetingAt : <span className="text-slate-300">なし</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => handleDelete(e, m.id, m.name)}
-                          aria-label={`${m.name}を削除`}
-                          className="rounded-md p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
-                        >
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{m.position}</td>
+                        <td className="px-4 py-3 text-slate-500">{m.joinedAt}</td>
+                        <td className="px-4 py-3 text-slate-600">{m.mentor || "—"}</td>
+                        <td className="px-4 py-3 text-slate-600">{m.ojtOwner || "—"}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.onboardingStatus]}`}>{m.onboardingStatus}</span>
+                            {trainingCount > 0 && <span className="text-xs text-slate-400">{trainingCount}件</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {latestReport ? (
+                            <div>
+                              <p className="text-xs text-slate-500">{latestReport.reportedAt}</p>
+                              {hasConsultation && (
+                                <span className="mt-0.5 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">相談あり</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-300">未提出</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-500">
+                          {latestMeeting ? latestMeeting.meetingAt : <span className="text-slate-300">なし</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={(e) => handleDelete(e, m.id, m.name)}
+                            aria-label={`${m.name}を削除`}
+                            className="rounded-md p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

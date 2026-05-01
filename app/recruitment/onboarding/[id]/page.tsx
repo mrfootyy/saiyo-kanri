@@ -254,16 +254,16 @@ function MemberDetail({ memberId }: { memberId: string }) {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-slate-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <Link href="/recruitment/onboarding" className="mb-3 flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600">
           <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
           </svg>
           オンボーディング一覧
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight text-slate-900">{member.name}</h1>
               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[member.condition]}`}>{member.condition}</span>
               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[member.retentionRisk]}`}>リスク: {member.retentionRisk}</span>
@@ -283,7 +283,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-100 bg-white px-6" role="tablist">
+      <div className="flex overflow-x-auto border-b border-slate-100 bg-white px-4 sm:px-6" role="tablist">
         {TABS.map((tab) => {
           const hasUpdate = hasUnseenUpdate(tab);
           return (
@@ -293,7 +293,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
               aria-selected={activeTab === tab}
               aria-label={hasUpdate ? `${tab}、未確認の更新があります` : tab}
               onClick={() => setActiveTab(tab)}
-              className={`relative mr-5 border-b-2 py-3 pr-2 text-sm font-medium transition-colors focus-visible:outline-none ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
+              className={`relative mr-4 flex-shrink-0 border-b-2 py-3 pr-2 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-none ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-700"}`}
             >
               {tab}
               {hasUpdate && (
@@ -308,12 +308,12 @@ function MemberDetail({ memberId }: { memberId: string }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
 
         {/* 基本情報 */}
         {activeTab === "基本情報" && (
           <div className="max-w-2xl space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>氏名 <span className="text-red-500">*</span></label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
@@ -323,7 +323,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
                 <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} className={inputCls} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>部署</label>
                 <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className={inputCls} />
@@ -333,7 +333,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
                 <input type="date" value={joinedAt} onChange={(e) => setJoinedAt(e.target.value)} className={inputCls} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>メンター</label>
                 <div className="relative">
@@ -376,19 +376,23 @@ function MemberDetail({ memberId }: { memberId: string }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">研修記録</p>
-              <button onClick={() => setShowTForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
-                {showTForm ? "キャンセル" : "+ 記録を追加"}
+              <button onClick={() => setShowTForm((v) => !v)} aria-label={showTForm ? "キャンセル" : "記録を追加"} className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
+                {showTForm ? (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg><span className="hidden sm:inline">キャンセル</span></>
+                ) : (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg><span className="hidden sm:inline">記録を追加</span></>
+                )}
               </button>
             </div>
             {showTForm && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="mb-3 text-sm font-semibold text-slate-800">新しい研修記録</p>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>研修名 <span className="text-red-500">*</span></label><input type="text" value={tName} onChange={(e) => setTName(e.target.value)} placeholder="会社概要研修" className={inputCls} /></div>
                     <div><label className={labelCls}>実施日</label><input type="date" value={tDate} onChange={(e) => setTDate(e.target.value)} className={inputCls} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>担当者</label><input type="text" value={tTrainer} onChange={(e) => setTTrainer(e.target.value)} placeholder="田中部長" className={inputCls} /></div>
                     <div>
                       <label className={labelCls}>理解度 (1〜5)</label>
@@ -397,7 +401,7 @@ function MemberDetail({ memberId }: { memberId: string }) {
                   </div>
                   <div><label className={labelCls}>実施内容</label><textarea value={tContent} onChange={(e) => setTContent(e.target.value)} rows={2} className={textareaCls} /></div>
                   <div><label className={labelCls}>成果物URL</label><input type="url" value={tUrl} onChange={(e) => setTUrl(e.target.value)} placeholder="https://..." className={inputCls} /></div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>良かった点</label><textarea value={tGood} onChange={(e) => setTGood(e.target.value)} rows={2} className={textareaCls} /></div>
                     <div><label className={labelCls}>課題点</label><textarea value={tIssue} onChange={(e) => setTIssue(e.target.value)} rows={2} className={textareaCls} /></div>
                   </div>
@@ -439,26 +443,30 @@ function MemberDetail({ memberId }: { memberId: string }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">OJT記録</p>
-              <button onClick={() => setShowOForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
-                {showOForm ? "キャンセル" : "+ 記録を追加"}
+              <button onClick={() => setShowOForm((v) => !v)} aria-label={showOForm ? "キャンセル" : "記録を追加"} className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
+                {showOForm ? (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg><span className="hidden sm:inline">キャンセル</span></>
+                ) : (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg><span className="hidden sm:inline">記録を追加</span></>
+                )}
               </button>
             </div>
             {showOForm && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="mb-3 text-sm font-semibold text-slate-800">新しいOJT記録</p>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>プロジェクト名 <span className="text-red-500">*</span></label><input type="text" value={oProject} onChange={(e) => setOProject(e.target.value)} placeholder="採用管理システム" className={inputCls} /></div>
                     <div><label className={labelCls}>記録日</label><input type="date" value={oDate} onChange={(e) => setODate(e.target.value)} className={inputCls} /></div>
                   </div>
                   <div><label className={labelCls}>担当タスク <span className="text-red-500">*</span></label><input type="text" value={oTask} onChange={(e) => setOTask(e.target.value)} placeholder="UI改善の実装" className={inputCls} /></div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div><label className={labelCls}>難易度</label><div className="relative"><select value={oDiff} onChange={(e) => setODiff(e.target.value as OjtDifficulty)} className={selectCls}>{OJT_DIFFICULTY_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}</select><SelectArrow /></div></div>
                     <div><label className={labelCls}>進捗</label><div className="relative"><select value={oProg} onChange={(e) => setOProg(e.target.value as OjtProgress)} className={selectCls}>{OJT_PROGRESS_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}</select><SelectArrow /></div></div>
                     <div><label className={labelCls}>レビュー担当</label><input type="text" value={oReviewer} onChange={(e) => setOReviewer(e.target.value)} placeholder="田中部長" className={inputCls} /></div>
                   </div>
                   <div><label className={labelCls}>詰まっているポイント</label><textarea value={oBlocker} onChange={(e) => setOBlocker(e.target.value)} rows={2} className={textareaCls} /></div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>フィードバック内容</label><textarea value={oFeedback} onChange={(e) => setOFeedback(e.target.value)} rows={2} className={textareaCls} /></div>
                     <div><label className={labelCls}>担当者評価</label><textarea value={oComment} onChange={(e) => setOComment(e.target.value)} rows={2} className={textareaCls} /></div>
                   </div>
@@ -503,8 +511,12 @@ function MemberDetail({ memberId }: { memberId: string }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">日報</p>
-              <button onClick={() => setShowRForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
-                {showRForm ? "キャンセル" : "+ 日報を追加"}
+              <button onClick={() => setShowRForm((v) => !v)} aria-label={showRForm ? "キャンセル" : "日報を追加"} className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
+                {showRForm ? (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg><span className="hidden sm:inline">キャンセル</span></>
+                ) : (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg><span className="hidden sm:inline">日報を追加</span></>
+                )}
               </button>
             </div>
             {showRForm && (
@@ -513,11 +525,11 @@ function MemberDetail({ memberId }: { memberId: string }) {
                 <div className="space-y-3">
                   <div><label className={labelCls}>日付</label><input type="date" value={rDate} onChange={(e) => setRDate(e.target.value)} className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" /></div>
                   <div><label className={labelCls}>今日やったこと <span className="text-red-500">*</span></label><textarea value={rDid} onChange={(e) => setRDid(e.target.value)} rows={3} placeholder="今日の業務内容を記入" className={textareaCls} /></div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>学んだこと</label><textarea value={rLearned} onChange={(e) => setRLearned(e.target.value)} rows={2} className={textareaCls} /></div>
                     <div><label className={labelCls}>詰まったこと</label><textarea value={rBlocked} onChange={(e) => setRBlocked(e.target.value)} rows={2} className={textareaCls} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>明日やること</label><textarea value={rNext} onChange={(e) => setRNext(e.target.value)} rows={2} className={textareaCls} /></div>
                     <div><label className={labelCls}>相談したいこと</label><textarea value={rConsult} onChange={(e) => setRConsult(e.target.value)} rows={2} className={textareaCls} /></div>
                   </div>
@@ -552,15 +564,19 @@ function MemberDetail({ memberId }: { memberId: string }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">面談記録</p>
-              <button onClick={() => setShowMForm((v) => !v)} className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
-                {showMForm ? "キャンセル" : "+ 記録を追加"}
+              <button onClick={() => setShowMForm((v) => !v)} aria-label={showMForm ? "キャンセル" : "記録を追加"} className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-700">
+                {showMForm ? (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg><span className="hidden sm:inline">キャンセル</span></>
+                ) : (
+                  <><svg className="h-3.5 w-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg><span className="hidden sm:inline">記録を追加</span></>
+                )}
               </button>
             </div>
             {showMForm && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="mb-3 text-sm font-semibold text-slate-800">新しい面談記録</p>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>面談日</label><input type="date" value={mDate} onChange={(e) => setMDate(e.target.value)} className={inputCls} /></div>
                     <div>
                       <label className={labelCls}>メンター <span className="text-red-500">*</span></label>
@@ -573,11 +589,11 @@ function MemberDetail({ memberId }: { memberId: string }) {
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>業務面の状態</label><div className="relative"><select value={mWorkCond} onChange={(e) => setMWorkCond(e.target.value as MemberCondition)} className={selectCls}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
                     <div><label className={labelCls}>メンタル面の状態</label><div className="relative"><select value={mMentalCond} onChange={(e) => setMMentalCond(e.target.value as MemberCondition)} className={selectCls}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><label className={labelCls}>相談内容</label><textarea value={mConsult} onChange={(e) => setMConsult(e.target.value)} rows={3} className={textareaCls} /></div>
                     <div><label className={labelCls}>メンターコメント</label><textarea value={mComment} onChange={(e) => setMComment(e.target.value)} rows={3} className={textareaCls} /></div>
                   </div>
@@ -692,11 +708,11 @@ function TrainingModal({ record, onClose, onSave, onDelete }: {
   return (
     <Modal title="研修記録の編集" onClose={onClose}>
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>研修名</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} /></div>
           <div><label className={labelCls}>実施日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>担当者</label><input type="text" value={trainer} onChange={(e) => setTrainer(e.target.value)} className={inputCls} /></div>
           <div>
             <label className={labelCls}>理解度 (1〜5)</label>
@@ -705,7 +721,7 @@ function TrainingModal({ record, onClose, onSave, onDelete }: {
         </div>
         <div><label className={labelCls}>実施内容</label><textarea value={content} onChange={(e) => setContent(e.target.value)} rows={3} className={textareaCls} /></div>
         <div><label className={labelCls}>成果物URL</label><input type="url" value={url} onChange={(e) => setUrl(e.target.value)} className={inputCls} /></div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>良かった点</label><textarea value={good} onChange={(e) => setGood(e.target.value)} rows={3} className={textareaCls} /></div>
           <div><label className={labelCls}>課題点</label><textarea value={issue} onChange={(e) => setIssue(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
@@ -747,18 +763,18 @@ function OjtModal({ record, onClose, onSave, onDelete }: {
   return (
     <Modal title="OJT記録の編集" onClose={onClose}>
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>プロジェクト名</label><input type="text" value={project} onChange={(e) => setProject(e.target.value)} className={inputCls} /></div>
           <div><label className={labelCls}>記録日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
         </div>
         <div><label className={labelCls}>担当タスク</label><input type="text" value={task} onChange={(e) => setTask(e.target.value)} className={inputCls} /></div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div><label className={labelCls}>難易度</label><div className="relative"><select value={diff} onChange={(e) => setDiff(e.target.value as OjtDifficulty)} className={selectCls}>{(["低","中","高"] as OjtDifficulty[]).map((d) => <option key={d} value={d}>{d}</option>)}</select><SelectArrow /></div></div>
           <div><label className={labelCls}>進捗</label><div className="relative"><select value={prog} onChange={(e) => setProg(e.target.value as OjtProgress)} className={selectCls}>{(["未着手","作業中","レビュー中","完了"] as OjtProgress[]).map((p) => <option key={p} value={p}>{p}</option>)}</select><SelectArrow /></div></div>
           <div><label className={labelCls}>レビュー担当</label><input type="text" value={reviewer} onChange={(e) => setReviewer(e.target.value)} className={inputCls} /></div>
         </div>
         <div><label className={labelCls}>詰まっているポイント</label><textarea value={blocker} onChange={(e) => setBlocker(e.target.value)} rows={2} className={textareaCls} /></div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>フィードバック</label><textarea value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} className={textareaCls} /></div>
           <div><label className={labelCls}>担当者評価</label><textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
@@ -797,11 +813,11 @@ function ReportModal({ record, onClose, onSave, onDelete }: {
       <div className="space-y-3">
         <div><label className={labelCls}>日付</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100" /></div>
         <div><label className={labelCls}>今日やったこと</label><textarea value={did} onChange={(e) => setDid(e.target.value)} rows={4} className={textareaCls} /></div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>学んだこと</label><textarea value={learned} onChange={(e) => setLearned(e.target.value)} rows={3} className={textareaCls} /></div>
           <div><label className={labelCls}>詰まったこと</label><textarea value={blocked} onChange={(e) => setBlocked(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>明日やること</label><textarea value={next} onChange={(e) => setNext(e.target.value)} rows={3} className={textareaCls} /></div>
           <div><label className={labelCls}>相談したいこと</label><textarea value={consult} onChange={(e) => setConsult(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
@@ -849,7 +865,7 @@ function MeetingModal({ record, interviewers, onClose, onSave, onDelete }: {
   return (
     <Modal title="面談記録の編集" onClose={onClose}>
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>面談日</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} /></div>
           <div>
             <label className={labelCls}>メンター</label>
@@ -862,11 +878,11 @@ function MeetingModal({ record, interviewers, onClose, onSave, onDelete }: {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>業務面の状態</label><div className="relative"><select value={workCond} onChange={(e) => setWorkCond(e.target.value as MemberCondition)} className={selectCls}>{(["良好","普通","不安あり","要対応"] as MemberCondition[]).map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
           <div><label className={labelCls}>メンタル面の状態</label><div className="relative"><select value={mentalCond} onChange={(e) => setMentalCond(e.target.value as MemberCondition)} className={selectCls}>{(["良好","普通","不安あり","要対応"] as MemberCondition[]).map((c) => <option key={c} value={c}>{c}</option>)}</select><SelectArrow /></div></div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div><label className={labelCls}>相談内容</label><textarea value={consult} onChange={(e) => setConsult(e.target.value)} rows={3} className={textareaCls} /></div>
           <div><label className={labelCls}>メンターコメント</label><textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>

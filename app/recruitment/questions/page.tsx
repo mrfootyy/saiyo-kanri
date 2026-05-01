@@ -156,7 +156,7 @@ export default function QuestionsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 bg-white px-6 py-5">
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900">面接質問リスト</h1>
@@ -164,43 +164,46 @@ export default function QuestionsPage() {
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            aria-label="質問を追加"
+            className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:px-4"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            質問を追加
+            <span className="hidden sm:inline">質問を追加</span>
           </button>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <nav aria-label="面接ステージ" className="w-44 flex-shrink-0 border-r border-slate-200 bg-white p-3 space-y-0.5">
-          <p className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">ステージ</p>
-          {STAGES.map((stage) => {
-            const count = stageCount(stage);
-            const isActive = activeStage === stage;
-            return (
-              <button
-                key={stage}
-                onClick={() => { setActiveStage(stage); setActiveTag("すべて"); }}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
-                  isActive
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {stage}
-                </div>
-                <span className={`text-xs font-semibold tabular-nums ${isActive ? "text-blue-600" : "text-slate-400"}`}>{count}</span>
-              </button>
-            );
-          })}
+      <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
+        <nav aria-label="面接ステージ" className="flex-shrink-0 border-b border-slate-200 bg-white p-3 sm:w-44 sm:border-b-0 sm:border-r">
+          <div className="flex gap-1 overflow-x-auto sm:flex-col sm:overflow-visible sm:space-y-0.5">
+            <p className="mb-3 hidden px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 sm:block">ステージ</p>
+            {STAGES.map((stage) => {
+              const count = stageCount(stage);
+              const isActive = activeStage === stage;
+              return (
+                <button
+                  key={stage}
+                  onClick={() => { setActiveStage(stage); setActiveTag("すべて"); }}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex flex-shrink-0 items-center justify-between gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 sm:w-full ${
+                    isActive
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {stage}
+                  </div>
+                  <span className={`text-xs font-semibold tabular-nums ${isActive ? "text-blue-600" : "text-slate-400"}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
         </nav>
 
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-5 sm:p-6">
           {showForm && (
             <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
               <p className="mb-4 text-sm font-semibold text-slate-900">新しい質問を追加</p>
