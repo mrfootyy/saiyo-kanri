@@ -133,7 +133,6 @@ function CandidateDetail({
   const [memo, setMemo] = useState(candidate.memo);
   const [tags, setTags] = useState<string[]>(candidate.tags ?? []);
   const [source, setSource] = useState(candidate.source ?? "");
-  const [rejectionReason, setRejectionReason] = useState(candidate.rejectionReason ?? "");
   const [assignedQuestions, setAssignedQuestions] = useState<string[]>(candidate.assignedQuestions ?? []);
   const [showQuestionPicker, setShowQuestionPicker] = useState(false);
   const [questionStageFilter, setQuestionStageFilter] = useState("すべて");
@@ -178,7 +177,6 @@ function CandidateDetail({
       interviewRecords: records,
       tags: tags.length ? tags : undefined,
       source: source.trim() || undefined,
-      rejectionReason: rejectionReason.trim() || undefined,
       assignedQuestions: assignedQuestions.length ? assignedQuestions : undefined,
       ...overrides,
     };
