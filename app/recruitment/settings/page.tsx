@@ -405,6 +405,19 @@ function SlackSettingsTab() {
         <h2 className="mb-1 text-sm font-semibold text-slate-900">Slack通知チャンネル</h2>
         <p className="mb-5 text-sm text-slate-500">イベント別に通知先チャンネルを設定できます。</p>
         <div className="space-y-4">
+          <div>
+            <label htmlFor="slack-webhookUrl" className="mb-0.5 block text-sm font-medium text-slate-700">Webhook URL</label>
+            <p className="mb-1.5 text-xs text-slate-400">SlackアプリのIncoming Webhook URLを入力してください。未入力の場合はサーバーの環境変数を使用します。</p>
+            <input
+              id="slack-webhookUrl"
+              type="url"
+              value={config.webhookUrl}
+              onChange={(e) => setConfig((c) => ({ ...c, webhookUrl: e.target.value }))}
+              placeholder="https://hooks.slack.com/services/..."
+              className={inputCls}
+            />
+          </div>
+          <hr className="border-slate-100" />
           {[
             { key: "statusChange" as const, label: "ステータス変更通知", desc: "候補者のステータスが変わったときに通知" },
             { key: "interviewAssign" as const, label: "面接官アサイン通知", desc: "面接官が設定されたときにメンション通知" },

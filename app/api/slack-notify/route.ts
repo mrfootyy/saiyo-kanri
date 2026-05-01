@@ -7,15 +7,17 @@ export async function POST(request: Request) {
 
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
-  if (!webhookUrl) {
-    return Response.json(
-      { error: "SLACK_WEBHOOK_URL が設定されていません。" },
-      { status: 500 }
-    );
-  }
-
   try {
-    const { notifications } = await request.json();
+    const body = await request.json();
+    const { notifications, webhookUrl: bodyWebhookUrl } = body as { notifications: unknown; webhookUrl?: string };
+    const resolvedWebhookUrl = bodyWebhookUrl || webhookUrl;
+
+    if (!resolvedWebhookUrl) {
+      return Response.json(
+        { error: "SLACK_WEBHOOK_URL が設定されていません。" },
+        { status: 500 }
+      );
+    }
 
     if (!Array.isArray(notifications)) {
       return Response.json(
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
 
     await Promise.all(
       (notifications as SlackNotification[]).map(async (notification) => {
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(resolvedWebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

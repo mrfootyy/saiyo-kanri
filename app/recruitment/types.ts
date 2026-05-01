@@ -86,6 +86,7 @@ export type FlowTemplate = {
 };
 
 export type SlackChannelConfig = {
+  webhookUrl: string;
   statusChange: string;
   interviewAssign: string;
   offerDecision: string;

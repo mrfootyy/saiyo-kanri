@@ -39,6 +39,7 @@ const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
 ];
 
 const DEFAULT_SLACK_CHANNEL_CONFIG: SlackChannelConfig = {
+  webhookUrl: "",
   statusChange: "#採用チャンネル",
   interviewAssign: "#採用チャンネル",
   offerDecision: "#採用チャンネル",
@@ -357,7 +358,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     authFetch("/api/slack-notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notifications }),
+      body: JSON.stringify({ notifications, webhookUrl: slackChannelConfig.webhookUrl || undefined }),
     }).catch((error) => {
       console.error("Failed to send Slack notifications", error);
     });
