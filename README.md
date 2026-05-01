@@ -31,6 +31,10 @@ Set these in Vercel Project Settings > Environment Variables for Production, Pre
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Supabase publishable/anon key |
 | `SLACK_WEBHOOK_URL` | No | Slack incoming webhook for notifications |
+| `ZOOM_ACCOUNT_ID` | No | Zoom Server-to-Server OAuth account ID for meeting creation |
+| `ZOOM_CLIENT_ID` | No | Zoom Server-to-Server OAuth client ID |
+| `ZOOM_CLIENT_SECRET` | No | Zoom Server-to-Server OAuth client secret |
+| `ZOOM_USER_ID` | No | Zoom user ID/email used to create meetings. Defaults to `me` |
 
 ## Supabase Setup
 

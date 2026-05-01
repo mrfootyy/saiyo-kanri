@@ -5,7 +5,7 @@ import { useRecruitment } from "../context";
 import SlackHistoryPanel from "../components/SlackHistoryPanel";
 
 export default function SlackPage() {
-  const { slackNotifications, slackChannelConfig } = useRecruitment();
+  const { slackNotifications, clearSlackNotifications } = useRecruitment();
   return (
     <div className="space-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -20,21 +20,11 @@ export default function SlackPage() {
           通知先を設定
         </Link>
       </div>
-      <section className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm" aria-label="現在のSlack通知先">
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            { label: "ステータス変更", value: slackChannelConfig.statusChange },
-            { label: "面接官アサイン", value: slackChannelConfig.interviewAssign },
-            { label: "合否決定", value: slackChannelConfig.offerDecision },
-          ].map((item) => (
-            <div key={item.label}>
-              <p className="text-xs font-medium text-slate-500">{item.label}</p>
-              <p className="mt-1 truncate text-sm font-semibold text-slate-800">{item.value || "未設定"}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-      <SlackHistoryPanel notifications={slackNotifications} fullPage />
+      <SlackHistoryPanel
+        notifications={slackNotifications}
+        fullPage
+        onClearNotifications={clearSlackNotifications}
+      />
     </div>
   );
 }

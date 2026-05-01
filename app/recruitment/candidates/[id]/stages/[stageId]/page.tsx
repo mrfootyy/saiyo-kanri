@@ -282,6 +282,8 @@ function StageForm({
   const [time, setTime] = useState(existing?.time ?? "");
   const [format, setFormat] = useState<InterviewFormat>(existing?.format ?? stage.format);
   const [zoomUrl, setZoomUrl] = useState(existing?.zoomUrl ?? "");
+  const [zoomCreating, setZoomCreating] = useState(false);
+  const [zoomError, setZoomError] = useState("");
   const [interviewers, setInterviewers] = useState<string[]>(existing?.interviewers ?? []);
   const [evaluations, setEvaluations] = useState<EvaluationItem[]>(makeInitialEvaluations);
   const [decisionReason, setDecisionReason] = useState(existing?.decisionReason ?? "");
@@ -381,6 +383,37 @@ function StageForm({
     onSave(updated, notifications);
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 2500);
+  }
+
+  async function createZoomMeeting() {
+    if (!date || !time) {
+      setZoomError("Zoom URLを発行する前に、実施日時の日付と開始時刻を指定してください。");
+      return;
+    }
+
+    setZoomCreating(true);
+    setZoomError("");
+
+    try {
+      const startTime = `${date}T${time}:00`;
+      const response = await authFetch("/api/zoom/meetings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: `${candidateName}さん ${stage.name}`,
+          startTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Tokyo",
+          durationMinutes: stage.durationMinutes || 60,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Zoom URL の発行に失敗しました。");
+      setZoomUrl(result.joinUrl);
+    } catch (error) {
+      setZoomError(error instanceof Error ? error.message : "Zoom URL の発行に失敗しました。");
+    } finally {
+      setZoomCreating(false);
+    }
   }
 
   useEffect(() => {
@@ -621,7 +654,7 @@ function StageForm({
             </div>
             <div className="flex gap-3 px-5 py-4">
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`flex-1 ${inputCls}`} />
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`w-36 ${inputCls}`} />
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} step={300} className={`w-36 ${inputCls}`} />
             </div>
           </div>
 
@@ -659,7 +692,7 @@ function StageForm({
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-slate-500">実施日時</p>
                   <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
-                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} placeholder="開始時刻" className={inputCls} />
+                  <input type="time" value={time} onChange={(e) => setTime(e.target.value)} step={300} placeholder="開始時刻" className={inputCls} />
                 </div>
 
                 {/* 形式 */}
@@ -698,7 +731,12 @@ function StageForm({
               {/* Zoom URL */}
               {showFormat && format === "オンライン" && (
                 <div className="mt-5 border-t border-slate-100 pt-5">
-                  <p className="mb-2 text-xs font-medium text-slate-500">Zoom ミーティング URL</p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-500">Zoom ミーティング URL</p>
+                    <p className="text-xs text-slate-400">
+                      作成日時: {date || "日付未指定"} {time || "開始時刻未指定"}
+                    </p>
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="url"
@@ -708,17 +746,15 @@ function StageForm({
                       className={`flex-1 ${inputCls}`}
                     />
                     <button
-                      onClick={() => {
-                        const id = Math.floor(Math.random() * 9000000000) + 1000000000;
-                        const pw = Math.random().toString(36).substring(2, 8);
-                        setZoomUrl(`https://zoom.us/j/${id}?pwd=${pw}`);
-                      }}
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                      type="button"
+                      onClick={createZoomMeeting}
+                      disabled={zoomCreating}
+                      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                     >
                       <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 10l4.553-2.069A1 1 0 0121 8.868v6.264a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
-                      URL を発行
+                      {zoomCreating ? "発行中..." : "URL を発行"}
                     </button>
                     {zoomUrl && (
                       <a
@@ -734,6 +770,7 @@ function StageForm({
                       </a>
                     )}
                   </div>
+                  {zoomError && <p className="mt-2 text-xs font-medium text-red-600">{zoomError}</p>}
                 </div>
               )}
 

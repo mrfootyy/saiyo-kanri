@@ -6,9 +6,10 @@ import { SlackNotification } from "../types";
 type Props = {
   notifications: SlackNotification[];
   fullPage?: boolean;
+  onClearNotifications?: () => void;
 };
 
-export default function SlackHistoryPanel({ notifications, fullPage }: Props) {
+export default function SlackHistoryPanel({ notifications, fullPage, onClearNotifications }: Props) {
   const [query, setQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState("すべて");
   const [channelFilter, setChannelFilter] = useState("すべて");
@@ -56,7 +57,20 @@ export default function SlackHistoryPanel({ notifications, fullPage }: Props) {
           </svg>
         </div>
         <h3 className="text-sm font-semibold text-slate-700">Slack通知履歴</h3>
-        <span className="ml-auto text-xs text-slate-400">{fullPage ? `${filtered.length} / ${notifications.length}件` : `${visibleItems.length}件`}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-slate-400">{fullPage ? `${filtered.length} / ${notifications.length}件` : `${visibleItems.length}件`}</span>
+          {onClearNotifications && notifications.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Slack通知履歴を全て削除しますか？")) onClearNotifications();
+              }}
+              className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+            >
+              全て削除
+            </button>
+          )}
+        </div>
       </div>
       {fullPage && (
         <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
@@ -99,11 +113,11 @@ export default function SlackHistoryPanel({ notifications, fullPage }: Props) {
         ) : (
           visibleItems.map((n) => (
             <div key={n.id} className="px-4 py-3">
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between gap-3">
                 <span className="text-xs font-medium text-blue-700">
                   {n.channel}
                 </span>
-                <span className="text-xs text-slate-400">{n.sentAt}</span>
+                <span className="shrink-0 text-xs text-slate-400">{n.sentAt}</span>
               </div>
               <p className="text-xs leading-relaxed text-slate-700">{n.message}</p>
               <p className="mt-0.5 text-xs text-slate-400">対象: {n.candidateName}</p>

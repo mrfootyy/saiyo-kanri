@@ -6,9 +6,10 @@ import { EmailHistory } from "../types";
 type Props = {
   histories: EmailHistory[];
   fullPage?: boolean;
+  onClearHistories?: () => void;
 };
 
-export default function EmailHistoryPanel({ histories, fullPage }: Props) {
+export default function EmailHistoryPanel({ histories, fullPage, onClearHistories }: Props) {
   const [query, setQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState("すべて");
   const [directionFilter, setDirectionFilter] = useState("すべて");
@@ -52,7 +53,20 @@ export default function EmailHistoryPanel({ histories, fullPage }: Props) {
           </svg>
         </div>
         <h3 className="text-sm font-semibold text-slate-700">メール履歴</h3>
-        <span className="ml-auto text-xs text-slate-400">{fullPage ? `${filtered.length} / ${histories.length}件` : `${visibleItems.length}件`}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-slate-400">{fullPage ? `${filtered.length} / ${histories.length}件` : `${visibleItems.length}件`}</span>
+          {onClearHistories && histories.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("メール履歴を全て削除しますか？")) onClearHistories();
+              }}
+              className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+            >
+              全て削除
+            </button>
+          )}
+        </div>
       </div>
       {fullPage && (
         <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
@@ -95,7 +109,7 @@ export default function EmailHistoryPanel({ histories, fullPage }: Props) {
         ) : (
           visibleItems.map((e) => (
             <div key={e.id} className="px-4 py-3">
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between gap-3">
                 <span
                   className={`rounded-md px-2 py-0.5 text-xs font-medium ${
                     e.direction === "送信"
@@ -105,7 +119,7 @@ export default function EmailHistoryPanel({ histories, fullPage }: Props) {
                 >
                   {e.direction}
                 </span>
-                <span className="text-xs text-slate-400">{e.sentAt}</span>
+                <span className="shrink-0 text-xs text-slate-400">{e.sentAt}</span>
               </div>
               <p className="text-xs font-medium text-slate-700">{e.subject}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{e.summary}</p>

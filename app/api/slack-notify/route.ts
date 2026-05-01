@@ -19,6 +19,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!isSlackWebhookUrl(resolvedWebhookUrl)) {
+      return Response.json(
+        { error: "Slack Webhook URL の形式が正しくありません。" },
+        { status: 400 }
+      );
+    }
+
     if (!Array.isArray(notifications)) {
       return Response.json(
         { error: "notifications must be an array." },
@@ -55,4 +62,13 @@ export async function POST(request: Request) {
 
 function formatSlackMessage(notification: SlackNotification) {
   return `*採用管理通知* (${notification.channel})\n${notification.message}`;
+}
+
+function isSlackWebhookUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname === "hooks.slack.com" && url.pathname.startsWith("/services/");
+  } catch {
+    return false;
+  }
 }

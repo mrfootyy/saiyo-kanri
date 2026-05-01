@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRecruitment } from "../context";
 import { ACTIVE_STATUSES, DEFAULT_POSITION_OPTION } from "../constants";
 import { Candidate, CandidateStatus, HireGoal } from "../types";
+import { authFetch } from "../../../lib/authFetch";
 
 const ALL_STATUSES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接", "内定", "不採用", "辞退"];
 const FUNNEL_STAGES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接", "内定"];
@@ -161,7 +162,7 @@ export default function AnalyticsPage() {
         durationStats,
         hireGoals,
       };
-      const res = await fetch("/api/recruitment-analysis", {
+      const res = await authFetch("/api/recruitment-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stats }),

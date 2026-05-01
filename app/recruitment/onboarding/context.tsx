@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { authFetch } from "../../../lib/authFetch";
 import type {
   OnboardingMember,
   TrainingRecord,
@@ -82,16 +83,74 @@ function saveToStorage(data: OnboardingData) {
   } catch {}
 }
 
+function isOnboardingData(value: unknown): value is OnboardingData {
+  if (!value || typeof value !== "object") return false;
+  const data = value as Record<string, unknown>;
+  return (
+    Array.isArray(data.members) &&
+    Array.isArray(data.trainingRecords) &&
+    Array.isArray(data.ojtRecords) &&
+    Array.isArray(data.dailyReports) &&
+    Array.isArray(data.mentorMeetings) &&
+    Array.isArray(data.slackNotifications)
+  );
+}
+
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<OnboardingData>(getDefaultData);
+  const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
   useEffect(() => {
-    setData(loadFromStorage());
+    async function loadData() {
+      const localData = loadFromStorage();
+
+      try {
+        const response = await authFetch("/api/onboarding-state");
+        if (response.ok) {
+          const result = await response.json();
+          if (isOnboardingData(result.data)) {
+            setData(result.data);
+            saveToStorage(result.data);
+            setHasLoadedStorage(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load onboarding data from Supabase", error);
+      }
+
+      setData(localData);
+      setHasLoadedStorage(true);
+    }
+
+    loadData();
   }, []);
+
+  useEffect(() => {
+    if (!hasLoadedStorage) return;
+    saveToStorage(data);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await authFetch("/api/onboarding-state", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => null);
+          throw new Error(result?.error ?? "Failed to save onboarding data.");
+        }
+      } catch (error) {
+        console.error("Failed to save onboarding data to Supabase", error);
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [data, hasLoadedStorage]);
 
   function update(next: OnboardingData) {
     setData(next);
-    saveToStorage(next);
   }
 
   const value: OnboardingContextType = {

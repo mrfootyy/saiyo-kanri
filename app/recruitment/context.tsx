@@ -58,8 +58,10 @@ type RecruitmentContextType = {
   setInterviewStages: (stages: InterviewStage[]) => void;
   slackNotifications: SlackNotification[];
   addSlackNotifications: (notifications: SlackNotification[]) => void;
+  clearSlackNotifications: () => void;
   emailHistories: EmailHistory[];
   addEmailHistory: (history: EmailHistory) => void;
+  clearEmailHistories: () => void;
   interviewQuestions: InterviewQuestion[];
   addInterviewQuestion: (q: InterviewQuestion) => void;
   updateInterviewQuestion: (q: InterviewQuestion) => void;
@@ -266,14 +268,20 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       console.error("Failed to save recruitment data to localStorage", error);
     }
 
-    const timeoutId = window.setTimeout(() => {
-      authFetch("/api/recruitment-state", {
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await authFetch("/api/recruitment-state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(remoteData),
-      }).catch((error) => {
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => null);
+          throw new Error(result?.error ?? "Failed to save recruitment data.");
+        }
+      } catch (error) {
         console.error("Failed to save recruitment data to Supabase", error);
-      });
+      }
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
@@ -359,13 +367,26 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notifications, webhookUrl: slackChannelConfig.webhookUrl || undefined }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(result?.error ?? "Failed to send Slack notifications.");
+      }
     }).catch((error) => {
       console.error("Failed to send Slack notifications", error);
     });
   }
 
+  function clearSlackNotifications() {
+    setSlackNotifications([]);
+  }
+
   function addEmailHistory(history: EmailHistory) {
     setEmailHistories((prev) => [history, ...prev]);
+  }
+
+  function clearEmailHistories() {
+    setEmailHistories([]);
   }
 
   function addInterviewQuestion(q: InterviewQuestion) {
@@ -452,8 +473,10 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         setInterviewStages: updateInterviewStages,
         slackNotifications,
         addSlackNotifications,
+        clearSlackNotifications,
         emailHistories,
         addEmailHistory,
+        clearEmailHistories,
         interviewQuestions,
         addInterviewQuestion,
         updateInterviewQuestion,

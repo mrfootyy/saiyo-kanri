@@ -69,6 +69,75 @@ function SelectArrow() {
   );
 }
 
+function parseCompanyDuration(value: string) {
+  const yearMatch = value.match(/(\d+)\s*年/);
+  const monthMatch = value.match(/(\d+)\s*(?:ヶ月|か月|カ月|月)/);
+  return {
+    years: yearMatch ? Number(yearMatch[1]) : 0,
+    months: monthMatch ? Number(monthMatch[1]) : 0,
+  };
+}
+
+function formatCompanyDuration(years: number, months: number) {
+  const parts = [];
+  if (years > 0) parts.push(`${years}年`);
+  if (months > 0) parts.push(`${months}ヶ月`);
+  return parts.join("");
+}
+
+function CompanyDurationSelect({
+  value,
+  label,
+  onChange,
+}: {
+  value: string;
+  label: string;
+  onChange: (value: string) => void;
+}) {
+  const duration = parseCompanyDuration(value);
+
+  function updateDuration(nextYears: number, nextMonths: number) {
+    onChange(formatCompanyDuration(nextYears, nextMonths));
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2" aria-label={label}>
+      <label className="flex items-center gap-1">
+        <div className="relative min-w-0 flex-1">
+          <select
+            value={duration.years}
+            onChange={(event) => updateDuration(Number(event.target.value), duration.months)}
+            className={selectCls}
+            aria-label={`${label}の年`}
+          >
+            {Array.from({ length: 51 }, (_, year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <SelectArrow />
+        </div>
+        <span className="flex-shrink-0 text-sm text-slate-700">年</span>
+      </label>
+      <label className="flex items-center gap-1">
+        <div className="relative min-w-0 flex-1">
+          <select
+            value={duration.months}
+            onChange={(event) => updateDuration(duration.years, Number(event.target.value))}
+            className={selectCls}
+            aria-label={`${label}の月`}
+          >
+            {Array.from({ length: 12 }, (_, month) => (
+              <option key={month} value={month}>{month}</option>
+            ))}
+          </select>
+          <SelectArrow />
+        </div>
+        <span className="flex-shrink-0 text-sm text-slate-700">ヶ月</span>
+      </label>
+    </div>
+  );
+}
+
 function CandidateDetail({
   candidate,
   allSlack,
@@ -328,8 +397,8 @@ function CandidateDetail({
             )}
             <button
               onClick={handleSave}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 ${
-                saved ? "bg-slate-800 text-white" : "bg-slate-900 text-white hover:bg-slate-800"
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                saved ? "bg-blue-700 text-white" : "bg-blue-600 text-white hover:bg-blue-700"
               }`}
             >
               {saved && (
@@ -478,14 +547,11 @@ function CandidateDetail({
                         placeholder="株式会社サンプル"
                         className={`flex-1 ${inputCls}`}
                       />
-                      <div className="w-36 flex-shrink-0">
-                        <input
-                          type="text"
+                      <div className="w-64 flex-shrink-0">
+                        <CompanyDurationSelect
                           value={c.years}
-                          onChange={(e) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, years: e.target.value } : item))}
-                          placeholder="例：2年6ヶ月"
-                          aria-label={`${c.name || "企業"}の在籍期間`}
-                          className={inputCls}
+                          label={`${c.name || "企業"}の在籍期間`}
+                          onChange={(years) => setCompanies((prev) => prev.map((item, idx) => idx === i ? { ...item, years } : item))}
                         />
                       </div>
                       <button
@@ -783,9 +849,7 @@ function CandidateDetail({
                             <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600">{q.modelAnswer}</p>
                           )}
                         </div>
-                        {required ? (
-                          <span className="flex-shrink-0 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-700">自動表示</span>
-                        ) : (
+                        {!required && (
                           <button
                             type="button"
                             onClick={() => setAssignedQuestions((prev) => prev.filter((id) => id !== q.id))}
@@ -845,20 +909,19 @@ function CandidateDetail({
                             </div>
                             <p className="text-sm text-slate-800">{q.text}</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setAssignedQuestions((prev) =>
-                              assigned ? prev.filter((id) => id !== q.id) : [...prev, q.id]
-                            )}
-                            disabled={q.required}
-                            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                              q.required
-                                ? "cursor-default border border-blue-200 bg-blue-50 text-blue-700"
-                                : assigned ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-slate-300 text-slate-600 hover:bg-slate-50"
-                            }`}
-                          >
-                            {q.required ? "自動表示" : assigned ? "選択中" : "追加"}
-                          </button>
+                          {!q.required && (
+                            <button
+                              type="button"
+                              onClick={() => setAssignedQuestions((prev) =>
+                                assigned ? prev.filter((id) => id !== q.id) : [...prev, q.id]
+                              )}
+                              className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                                assigned ? "bg-blue-600 text-white hover:bg-blue-700" : "border border-slate-300 text-slate-600 hover:bg-slate-50"
+                              }`}
+                            >
+                              {assigned ? "選択中" : "追加"}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
