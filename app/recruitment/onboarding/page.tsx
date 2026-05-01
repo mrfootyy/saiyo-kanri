@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useOnboarding } from "./context";
-import MemberDetailModal from "./components/MemberDetailModal";
-import type { ConditionFilterValue, MemberCondition, OnboardingMember, RetentionRisk, RiskFilterValue } from "./types";
+import type { ConditionFilterValue, MemberCondition, RetentionRisk, RiskFilterValue } from "./types";
 
 const CONDITION_FILTER_OPTIONS: ConditionFilterValue[] = ["すべて", "良好", "普通", "不安あり", "要対応"];
 const RISK_FILTER_OPTIONS: RiskFilterValue[] = ["すべて", "低", "中", "高"];
@@ -34,7 +34,6 @@ export default function OnboardingPage() {
   const [search, setSearch] = useState("");
   const [conditionFilter, setConditionFilter] = useState<ConditionFilterValue>("すべて");
   const [riskFilter, setRiskFilter] = useState<RiskFilterValue>("すべて");
-  const [selectedMember, setSelectedMember] = useState<OnboardingMember | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -59,13 +58,11 @@ export default function OnboardingPage() {
   const highRiskCount = members.filter((m) => m.retentionRisk === "高").length;
 
   function getLatestReport(memberId: string) {
-    const reports = dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
-    return reports[0] ?? null;
+    return dailyReports.filter((r) => r.memberId === memberId).sort((a, b) => b.reportedAt.localeCompare(a.reportedAt))[0] ?? null;
   }
 
   function getLatestMeeting(memberId: string) {
-    const meetings = mentorMeetings.filter((m) => m.memberId === memberId).sort((a, b) => b.meetingAt.localeCompare(a.meetingAt));
-    return meetings[0] ?? null;
+    return mentorMeetings.filter((m) => m.memberId === memberId).sort((a, b) => b.meetingAt.localeCompare(a.meetingAt))[0] ?? null;
   }
 
   function getTrainingCount(memberId: string) {
@@ -118,9 +115,7 @@ export default function OnboardingPage() {
               key={c}
               onClick={() => setConditionFilter(c)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                conditionFilter === c
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                conditionFilter === c ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               {c}
@@ -134,9 +129,7 @@ export default function OnboardingPage() {
               key={r}
               onClick={() => setRiskFilter(r)}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                riskFilter === r
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                riskFilter === r ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               {r}
@@ -153,7 +146,7 @@ export default function OnboardingPage() {
             <p className="mt-1 text-xs text-slate-400">検索条件やフィルターを変更してください。</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
@@ -178,18 +171,18 @@ export default function OnboardingPage() {
                   return (
                     <tr
                       key={m.id}
-                      onClick={() => setSelectedMember(m)}
-                      className={`cursor-pointer border-b border-slate-50 transition-colors hover:bg-blue-50 last:border-b-0 ${
-                        idx % 2 === 1 ? "bg-slate-50/30" : ""
-                      }`}
+                      className={`border-b border-slate-50 last:border-b-0 ${idx % 2 === 1 ? "bg-slate-50/30" : ""}`}
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-slate-900">{m.name}</span>
+                        <Link
+                          href={`/recruitment/onboarding/${m.id}`}
+                          className="flex items-center gap-2 font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {m.name}
                           {(m.condition === "不安あり" || m.condition === "要対応") && (
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-label="要フォロー" />
                           )}
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-slate-600">{m.position}</td>
                       <td className="px-4 py-3 text-slate-500">{m.joinedAt}</td>
@@ -197,12 +190,8 @@ export default function OnboardingPage() {
                       <td className="px-4 py-3 text-slate-600">{m.ojtOwner || "—"}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.onboardingStatus]}`}>
-                            {m.onboardingStatus}
-                          </span>
-                          {trainingCount > 0 && (
-                            <span className="text-xs text-slate-400">{trainingCount}件</span>
-                          )}
+                          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[m.onboardingStatus]}`}>{m.onboardingStatus}</span>
+                          {trainingCount > 0 && <span className="text-xs text-slate-400">{trainingCount}件</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -210,9 +199,7 @@ export default function OnboardingPage() {
                           <div>
                             <p className="text-xs text-slate-500">{latestReport.reportedAt}</p>
                             {hasConsultation && (
-                              <span className="mt-0.5 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-                                相談あり
-                              </span>
+                              <span className="mt-0.5 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">相談あり</span>
                             )}
                           </div>
                         ) : (
@@ -223,14 +210,10 @@ export default function OnboardingPage() {
                         {latestMeeting ? latestMeeting.meetingAt : <span className="text-slate-300">なし</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[m.condition]}`}>
-                          {m.condition}
-                        </span>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[m.condition]}`}>{m.condition}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[m.retentionRisk]}`}>
-                          {m.retentionRisk}
-                        </span>
+                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[m.retentionRisk]}`}>{m.retentionRisk}</span>
                       </td>
                     </tr>
                   );
@@ -240,13 +223,6 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
-
-      {selectedMember && (
-        <MemberDetailModal
-          member={selectedMember}
-          onClose={() => setSelectedMember(null)}
-        />
-      )}
     </div>
   );
 }
