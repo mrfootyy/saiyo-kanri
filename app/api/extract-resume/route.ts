@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { requireAuthenticatedUser } from "../../../lib/serverAuth";
 
 const MODEL = process.env.OPENAI_RESUME_MODEL ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(req);
+    if ("response" in auth) return auth.response;
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "OPENAI_API_KEY が設定されていません。" }, { status: 500 });
     }

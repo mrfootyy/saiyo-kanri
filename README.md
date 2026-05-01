@@ -36,6 +36,14 @@ Set these in Vercel Project Settings > Environment Variables for Production, Pre
 
 Run `supabase/recruitment_state.sql` in the Supabase SQL editor before using persistent recruitment state.
 
+## Login Setup
+
+The app uses Supabase Auth with email/password login. Users can sign in, sign up, and request password reset emails from `/login`.
+
+In Supabase Dashboard > Authentication > URL Configuration, set the production Vercel URL as the Site URL and add it to Redirect URLs. For local testing, add `http://localhost:3000/login`.
+
+After updating `supabase/recruitment_state.sql`, run it again in the Supabase SQL editor so `recruitment_state` is available only to authenticated users.
+
 ## Deploy on Vercel
 
 1. Import the GitHub repository into Vercel.

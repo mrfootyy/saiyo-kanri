@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRecruitment } from "../../../../../context";
 import { Candidate, DocumentFile, InterviewAudioSummary, InterviewQuestion, InterviewRecord } from "../../../../../types";
+import { authFetch } from "../../../../../../../lib/authFetch";
 
 type RecordingState = "idle" | "recording" | "stopped";
 type MicPermission = PermissionState | "unsupported" | "unknown";
@@ -284,7 +285,7 @@ export default function InterviewModePage() {
       formData.append("questions", stageQuestions.map((q, i) => `Q${i + 1}. ${q.text}`).join("\n"));
       formData.append("notes", interviewNotes);
 
-      const response = await fetch("/api/ai/interview-audio-summary", { method: "POST", body: formData });
+      const response = await authFetch("/api/ai/interview-audio-summary", { method: "POST", body: formData });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "録音の要約に失敗しました。");
 

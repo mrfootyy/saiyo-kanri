@@ -1,3 +1,5 @@
+import { authFetch } from "../../lib/authFetch";
+
 export type ExtractedCompany = { name: string; years: string };
 
 export type ExtractedInfo = {
@@ -16,7 +18,7 @@ export async function extractFromFile(
   fileType: string
 ): Promise<ExtractedInfo | ExtractError> {
   try {
-    const res = await fetch("/api/extract-resume", {
+    const res = await authFetch("/api/extract-resume", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ dataUrl, fileType }),

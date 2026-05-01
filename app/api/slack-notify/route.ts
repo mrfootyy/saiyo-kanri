@@ -1,6 +1,10 @@
 import { SlackNotification } from "../../recruitment/types";
+import { requireAuthenticatedUser } from "../../../lib/serverAuth";
 
 export async function POST(request: Request) {
+  const auth = await requireAuthenticatedUser(request);
+  if ("response" in auth) return auth.response;
+
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
 
   if (!webhookUrl) {

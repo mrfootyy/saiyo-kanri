@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useAuth } from "../../auth/AuthGate";
 import { useRecruitment } from "../context";
 import { getAllTasks } from "../taskUtils";
 
@@ -18,6 +19,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { candidates, interviewStages, emailHistories } = useRecruitment();
+  const { user, signOut } = useAuth();
 
   const taskCount = useMemo(
     () => getAllTasks(candidates, interviewStages, emailHistories).length,
@@ -182,11 +184,37 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {!collapsed && (
-        <div className="border-t border-slate-100 px-4 py-3">
-          <p className="text-[11px] text-slate-400">MVP v2.0</p>
-        </div>
-      )}
+      <div className={`border-t border-slate-100 ${collapsed ? "px-2 py-3" : "px-4 py-3"}`}>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={signOut}
+            aria-label="ログアウト"
+            className="flex h-9 w-full items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H9m4 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div>
+              <p className="truncate text-[11px] font-medium text-slate-500">{user?.email ?? "ログイン中"}</p>
+              <p className="text-[11px] text-slate-400">MVP v2.0</p>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H9m4 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              ログアウト
+            </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

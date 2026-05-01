@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { requireAuthenticatedUser } from "../../../../lib/serverAuth";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const TRANSCRIPTION_MODEL = process.env.OPENAI_TRANSCRIPTION_MODEL ?? "gpt-4o-mini-transcribe";
@@ -22,6 +23,9 @@ const fallbackSummary: InterviewSummaryResponse = {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuthenticatedUser(request);
+    if ("response" in auth) return auth.response;
+
     if (!process.env.OPENAI_API_KEY) {
       return Response.json({ error: "OPENAI_API_KEY が設定されていません。" }, { status: 500 });
     }

@@ -1,10 +1,13 @@
-import { createSupabaseClient } from "../../../lib/supabase";
+import { requireAuthenticatedUser } from "../../../lib/serverAuth";
 
 const STATE_ID = "default";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = createSupabaseClient();
+    const auth = await requireAuthenticatedUser(request);
+    if ("response" in auth) return auth.response;
+
+    const { supabase } = auth;
     const { data, error } = await supabase
       .from("recruitment_state")
       .select("data")
@@ -26,8 +29,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const auth = await requireAuthenticatedUser(request);
+    if ("response" in auth) return auth.response;
+
     const body = await request.json();
-    const supabase = createSupabaseClient();
+    const { supabase } = auth;
     const { error } = await supabase
       .from("recruitment_state")
       .upsert({

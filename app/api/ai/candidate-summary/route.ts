@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { requireAuthenticatedUser } from "../../../../lib/serverAuth";
 
 type CandidateSummary = {
   strengths: string[];
@@ -15,6 +16,9 @@ const fallbackSummary: CandidateSummary = {
 };
 
 export async function POST(request: Request) {
+  const auth = await requireAuthenticatedUser(request);
+  if ("response" in auth) return auth.response;
+
   if (!process.env.OPENAI_API_KEY) {
     return Response.json(
       { error: "OPENAI_API_KEY が設定されていません。" },

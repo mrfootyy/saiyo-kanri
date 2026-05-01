@@ -19,6 +19,7 @@ import {
 } from "../../../../types";
 import { STAGE_TYPE_OPTIONS, getDocumentEvaluationItems, getInterviewEvaluationItems } from "../../../../constants";
 import { deriveCandidateStatusFromFlow } from "../../../../statusUtils";
+import { authFetch } from "../../../../../../lib/authFetch";
 
 const RESULT_OPTIONS: InterviewResult[] = ["通過", "保留", "不採用"];
 
@@ -554,7 +555,7 @@ function StageForm({
       formData.append("notes", notes);
       formData.append("questions", stageQuestionItems.map((question, index) => `Q${index + 1}. ${question.text}`).join("\n"));
 
-      const response = await fetch("/api/ai/interview-audio-summary", {
+      const response = await authFetch("/api/ai/interview-audio-summary", {
         method: "POST",
         body: formData,
       });

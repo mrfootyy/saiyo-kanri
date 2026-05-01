@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { authFetch } from "../../../lib/authFetch";
 import { useRecruitment } from "../context";
 import { Candidate, EmailTemplate } from "../types";
 
@@ -364,7 +365,7 @@ function SlackSettingsTab() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch("/api/slack-notify", {
+      const res = await authFetch("/api/slack-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

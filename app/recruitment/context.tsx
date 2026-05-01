@@ -5,6 +5,7 @@ import { Candidate, CandidateStatus, EmailHistory, EmailTemplate, FlowTemplate, 
 import { mockCandidates, mockInterviewStages, mockSlackNotifications, mockEmailHistories, mockInterviewQuestions } from "./mockData";
 import { INTERVIEWER_OPTIONS } from "./constants";
 import { deriveCandidateStatusFromFlow } from "./statusUtils";
+import { authFetch } from "../../lib/authFetch";
 
 const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
   {
@@ -189,7 +190,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       }
 
       try {
-        const response = await fetch("/api/recruitment-state");
+        const response = await authFetch("/api/recruitment-state");
         if (response.ok) {
           const result = await response.json();
           if (isStoredRecruitmentData(result.data)) {
@@ -254,7 +255,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     }
 
     const timeoutId = window.setTimeout(() => {
-      fetch("/api/recruitment-state", {
+      authFetch("/api/recruitment-state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(remoteData),
@@ -368,7 +369,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   function addSlackNotifications(notifications: SlackNotification[]) {
     if (notifications.length === 0) return;
     setSlackNotifications((prev) => [...prev, ...notifications]);
-    fetch("/api/slack-notify", {
+    authFetch("/api/slack-notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notifications }),
