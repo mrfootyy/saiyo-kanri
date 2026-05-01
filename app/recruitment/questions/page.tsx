@@ -155,9 +155,8 @@ export default function QuestionsPage() {
     interviewQuestions.filter((q) => q.stage === stage).length;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-start justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-slate-900">面接質問リスト</h1>
             <p className="mt-0.5 text-sm text-slate-500">面接ステージ別に質問をストック。必須質問は候補者ごとの質問リストに自動表示されます。</p>
@@ -172,11 +171,11 @@ export default function QuestionsPage() {
             </svg>
             <span className="hidden sm:inline">質問を追加</span>
           </button>
-        </div>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden sm:flex-row">
-        <nav aria-label="面接ステージ" className="flex-shrink-0 border-b border-slate-200 bg-white p-3 sm:w-44 sm:border-b-0 sm:border-r">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col sm:flex-row">
+        <nav aria-label="面接ステージ" className="flex-shrink-0 border-b border-slate-200 bg-slate-50/60 p-3 sm:w-44 sm:border-b-0 sm:border-r">
           <div className="flex gap-1 overflow-x-auto sm:flex-col sm:overflow-visible sm:space-y-0.5">
             <p className="mb-3 hidden px-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 sm:block">ステージ</p>
             {STAGES.map((stage) => {
@@ -203,7 +202,7 @@ export default function QuestionsPage() {
           </div>
         </nav>
 
-        <div className="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-5 sm:p-6">
+        <div className="flex-1 space-y-5 p-4 sm:p-6">
           {showForm && (
             <div className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
               <p className="mb-4 text-sm font-semibold text-slate-900">新しい質問を追加</p>
@@ -582,6 +581,7 @@ export default function QuestionsPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

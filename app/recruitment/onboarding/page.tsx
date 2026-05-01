@@ -138,33 +138,31 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* ヘッダー */}
-      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
-        <h1 className="text-lg font-semibold text-slate-900">オンボーディング管理</h1>
-        <p className="mt-0.5 text-xs text-slate-500">入社者の研修・OJT・状態を一元管理します</p>
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900">オンボーディング管理</h1>
+        <p className="mt-0.5 text-sm text-slate-500">入社者の研修・OJT・状態を一元管理します。</p>
       </div>
 
       {/* サマリーカード */}
-      <div className="border-b border-slate-100 bg-white px-4 py-4 sm:px-6">
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs font-medium text-slate-500">入社者数</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{totalCount}<span className="ml-1 text-sm font-normal text-slate-400">名</span></p>
+            <p className="mt-2 text-3xl font-semibold text-slate-900">{totalCount}<span className="ml-1 text-sm font-normal text-slate-400">名</span></p>
           </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 shadow-sm">
             <p className="text-xs font-medium text-blue-600">研修中</p>
-            <p className="mt-1 text-2xl font-bold text-blue-700">{inProgressCount}<span className="ml-1 text-sm font-normal text-blue-400">名</span></p>
+            <p className="mt-2 text-3xl font-semibold text-blue-700">{inProgressCount}<span className="ml-1 text-sm font-normal text-blue-400">名</span></p>
           </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+          <div className="rounded-xl border border-amber-100 bg-amber-50 px-5 py-4 shadow-sm">
             <p className="text-xs font-medium text-amber-600">要フォロー</p>
-            <p className="mt-1 text-2xl font-bold text-amber-700">{needFollowCount}<span className="ml-1 text-sm font-normal text-amber-400">名</span></p>
+            <p className="mt-2 text-3xl font-semibold text-amber-700">{needFollowCount}<span className="ml-1 text-sm font-normal text-amber-400">名</span></p>
           </div>
-        </div>
       </div>
 
       {/* 検索・追加 */}
-      <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <input
             type="search"
@@ -189,7 +187,7 @@ export default function OnboardingPage() {
 
       {/* 追加フォーム */}
       {showAddForm && (
-        <div className="border-b border-blue-100 bg-blue-50 px-4 py-4 sm:px-6">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm sm:p-5">
           <p className="mb-3 text-sm font-semibold text-slate-800">新しいメンバーを追加</p>
           <div className="mb-4 rounded-lg border border-blue-200 bg-white px-3 py-3">
             <label className={labelCls}>応募者から登録</label>
@@ -266,7 +264,7 @@ export default function OnboardingPage() {
       )}
 
       {/* テーブル */}
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-4 sm:px-6">
+      <div className="overflow-auto">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-slate-500">該当する入社者がいません。</p>

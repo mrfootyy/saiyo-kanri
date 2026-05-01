@@ -120,9 +120,17 @@ export default function Sidebar({ onMobileClose }: { onMobileClose?: () => void 
       aria-label="メインナビゲーション"
     >
       <div className={`flex items-center border-b border-slate-100 ${(!isMobile && collapsed) ? "flex-col gap-2 px-2 py-3.5" : "justify-between px-4 py-3.5"}`}>
-        <div>
-          <p className="text-sm font-semibold leading-tight text-slate-900">採用管理</p>
-          {(!isMobile && !collapsed) && <p className="text-[11px] leading-tight text-slate-400">株式会社ガジェログ</p>}
+        <div className="min-w-0">
+          {(!isMobile && collapsed) ? (
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white" aria-label="採用管理">
+              採
+            </div>
+          ) : (
+            <>
+              <p className="truncate text-sm font-semibold leading-tight text-slate-900">採用管理</p>
+              <p className="truncate text-[11px] leading-tight text-slate-400">株式会社ガジェログ</p>
+            </>
+          )}
         </div>
 
         {isMobile ? (

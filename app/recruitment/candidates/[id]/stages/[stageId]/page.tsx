@@ -153,7 +153,7 @@ export default function StageDetailPage() {
             {accessible && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${stage.id}/interview`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
               >
                 面接モード
               </Link>
@@ -903,17 +903,17 @@ function InterviewSupportCard({
           ) : (
             <ol className="space-y-2">
               {questions.map((question, index) => (
-                <li key={question.id} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5">
+                <li key={question.id} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
                   <div className="mb-1 flex items-center gap-1.5">
                     <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold text-white">Q{index + 1}</span>
-                    {question.required && <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>}
+                    {question.required && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>}
                     {question.tags.slice(0, 3).map((tag) => (
                       <span key={tag} className="rounded bg-white px-1.5 py-0.5 text-[10px] text-slate-500 ring-1 ring-inset ring-slate-200">{tag}</span>
                     ))}
                   </div>
                   <p className="text-sm leading-relaxed text-slate-800">{question.text}</p>
                   {question.modelAnswer && (
-                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-blue-700">{question.modelAnswer}</p>
+                    <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-600">{question.modelAnswer}</p>
                   )}
                 </li>
               ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "../../../lib/authFetch";
 import { useRecruitment } from "../context";
 import { Candidate, EmailTemplate } from "../types";
@@ -25,14 +25,18 @@ function SelectArrow() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("面接官");
 
+  useEffect(() => {
+    if (window.location.hash === "#slack") setActiveTab("Slack設定");
+  }, []);
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div>
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">設定</h1>
         <p className="mt-0.5 text-sm text-slate-500">システムの各種設定を管理します。</p>
       </div>
 
-      <div className="flex overflow-x-auto border-b border-slate-100 bg-white px-4 sm:px-6" role="tablist" aria-label="設定タブ">
+      <div className="flex overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 shadow-sm" role="tablist" aria-label="設定タブ">
         {(["面接官", "メールテンプレート", "Slack設定", "バックアップ"] as SettingsTab[]).map((tab) => (
           <button
             key={tab}
@@ -50,7 +54,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6">
+      <div>
         {activeTab === "面接官" && <InterviewersTab />}
         {activeTab === "メールテンプレート" && <EmailTemplatesTab />}
         {activeTab === "Slack設定" && <SlackSettingsTab />}
@@ -362,6 +366,10 @@ function SlackSettingsTab() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
+  useEffect(() => {
+    setConfig(slackChannelConfig);
+  }, [slackChannelConfig]);
+
   async function handleTest() {
     setTesting(true);
     setTestResult(null);
@@ -370,6 +378,7 @@ function SlackSettingsTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          webhookUrl: config.webhookUrl || undefined,
           notifications: [{
             id: "test",
             candidateId: "test",
@@ -400,7 +409,7 @@ function SlackSettingsTab() {
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-4xl space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-slate-900">Slack通知チャンネル</h2>
         <p className="mb-5 text-sm text-slate-500">イベント別に通知先チャンネルを設定できます。</p>

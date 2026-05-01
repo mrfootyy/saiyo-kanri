@@ -321,15 +321,15 @@ function CandidateDetail({
             {showInterviewModeButton && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${currentStage.id}/interview`}
-                className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
                 面接モード
               </Link>
             )}
             <button
               onClick={handleSave}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
-                saved ? "bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 ${
+                saved ? "bg-slate-800 text-white" : "bg-slate-900 text-white hover:bg-slate-800"
               }`}
             >
               {saved && (
@@ -767,20 +767,20 @@ function CandidateDetail({
                 {visibleCandidateQuestionItems.map((q, index) => {
                   const required = requiredQuestionItems.some((item) => item.id === q.id);
                   return (
-                    <div key={q.id} className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <div key={q.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-1.5">
                             <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">Q{index + 1}</span>
                             {required && (
-                              <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 ring-1 ring-inset ring-blue-200">必須</span>
+                              <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>
                             )}
                             <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">{q.stage}</span>
                             {q.tags.map((t) => <span key={t} className="rounded-md bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-inset ring-slate-200">{t}</span>)}
                           </div>
                           <p className="text-sm font-medium leading-relaxed text-slate-900">{q.text}</p>
                           {q.modelAnswer && (
-                            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-blue-700">{q.modelAnswer}</p>
+                            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600">{q.modelAnswer}</p>
                           )}
                         </div>
                         {required ? (
