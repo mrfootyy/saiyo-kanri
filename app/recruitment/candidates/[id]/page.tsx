@@ -8,6 +8,8 @@ import {
   Candidate,
   CandidateStatus,
   DocumentFile,
+  EmailHistory,
+  EmailTemplate,
   InterviewRecord,
   InterviewResult,
   SlackChannelConfig,
@@ -31,12 +33,12 @@ const RESULT_COLORS: Record<InterviewResult, string> = {
   不採用: "bg-slate-100 text-slate-700",
 };
 
-type Tab = "基本情報" | "書類" | "評価" | "質問" | "履歴";
+type Tab = "基本情報" | "書類" | "評価" | "質問" | "メール" | "履歴";
 
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, interviewStages, interviewers: interviewerOptions, interviewQuestions, slackChannelConfig } =
+  const { candidates, updateCandidate, slackNotifications, addSlackNotifications, emailHistories, addEmailHistory, emailTemplates, interviewStages, interviewers: interviewerOptions, interviewQuestions, slackChannelConfig } =
     useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
@@ -52,7 +54,7 @@ export default function CandidateDetailPage() {
     );
   }
 
-  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} interviewStages={interviewStages} interviewerOptions={interviewerOptions} slackChannelConfig={slackChannelConfig} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} interviewQuestions={interviewQuestions} />;
+  return <CandidateDetail candidate={candidate} allSlack={slackNotifications} allEmail={emailHistories.filter((e) => e.candidateId === candidate.id)} emailTemplates={emailTemplates} interviewStages={interviewStages} interviewerOptions={interviewerOptions} slackChannelConfig={slackChannelConfig} onUpdate={updateCandidate} onAddSlack={addSlackNotifications} onAddEmail={addEmailHistory} interviewQuestions={interviewQuestions} />;
 }
 
 const inputCls = "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-colors";
@@ -83,6 +85,30 @@ function formatCompanyDuration(years: number, months: number) {
   if (years > 0) parts.push(`${years}年`);
   if (months > 0) parts.push(`${months}ヶ月`);
   return parts.join("");
+}
+
+function renderEmailTemplate(template: string, candidate: Candidate, records: InterviewRecord[]) {
+  const interview = getLatestInterviewRecord(records);
+  const values: Record<string, string> = {
+    候補者名: candidate.name,
+    氏名: candidate.name,
+    職種: candidate.position,
+    メール: candidate.email,
+    面接日: interview?.date ?? "",
+    面接時刻: interview?.time ?? "",
+    ZoomURL: interview?.zoomUrl ?? "",
+    選考ステージ: interview?.stageName ?? candidate.status,
+  };
+
+  return Object.entries(values).reduce((text, [key, value]) => {
+    return text.replaceAll(`{${key}}`, value).replaceAll(`{{${key}}}`, value);
+  }, template);
+}
+
+function getLatestInterviewRecord(records: InterviewRecord[]) {
+  return [...records]
+    .filter((record) => record.date || record.zoomUrl)
+    .sort((a, b) => `${b.date ?? ""} ${b.time ?? ""}`.localeCompare(`${a.date ?? ""} ${a.time ?? ""}`))[0];
 }
 
 function CompanyDurationSelect({
@@ -142,21 +168,25 @@ function CandidateDetail({
   candidate,
   allSlack,
   allEmail,
+  emailTemplates,
   interviewStages,
   interviewerOptions,
   slackChannelConfig,
   onUpdate,
   onAddSlack,
+  onAddEmail,
   interviewQuestions,
 }: {
   candidate: Candidate;
   allSlack: SlackNotification[];
-  allEmail: ReturnType<typeof Array.prototype.filter>;
+  allEmail: EmailHistory[];
+  emailTemplates: EmailTemplate[];
   interviewStages: import("../../types").InterviewStage[];
   interviewerOptions: string[];
   slackChannelConfig: SlackChannelConfig;
   onUpdate: (c: Candidate) => void;
   onAddSlack: (n: SlackNotification[]) => void;
+  onAddEmail: (history: EmailHistory) => void;
   interviewQuestions: import("../../types").InterviewQuestion[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("基本情報");
@@ -180,6 +210,10 @@ function CandidateDetail({
   const [questionStageFilter, setQuestionStageFilter] = useState("すべて");
   const [candidateQuestionStageFilter, setCandidateQuestionStageFilter] = useState("すべて");
   const [questionSearch, setQuestionSearch] = useState("");
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState(emailTemplates[0]?.id ?? "");
+  const [emailSubjectDraft, setEmailSubjectDraft] = useState(() => renderEmailTemplate(emailTemplates[0]?.subject ?? "", candidate, candidate.interviewRecords));
+  const [emailBodyDraft, setEmailBodyDraft] = useState(() => renderEmailTemplate(emailTemplates[0]?.body ?? "", candidate, candidate.interviewRecords));
+  const [emailCopied, setEmailCopied] = useState(false);
 
   const [resumeFile, setResumeFile] = useState<DocumentFile | undefined>(candidate.resumeFile);
   const [cvFile, setCvFile] = useState<DocumentFile | undefined>(candidate.cvFile);
@@ -323,6 +357,55 @@ function CandidateDetail({
     setTimeout(() => setSaved(false), 2000);
   }
 
+  const emailCandidate: Candidate = {
+    ...candidate,
+    name,
+    nameKana,
+    position,
+    email,
+    phone,
+    age,
+    memo,
+    interviewers,
+    interviewRecords: records,
+  };
+
+  function applyEmailTemplate(templateId: string) {
+    setSelectedEmailTemplateId(templateId);
+    const template = emailTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+    setEmailSubjectDraft(renderEmailTemplate(template.subject, emailCandidate, records));
+    setEmailBodyDraft(renderEmailTemplate(template.body, emailCandidate, records));
+  }
+
+  function getMailtoHref() {
+    const params = new URLSearchParams({
+      subject: emailSubjectDraft,
+      body: emailBodyDraft,
+    });
+    return `mailto:${encodeURIComponent(email.trim())}?${params.toString()}`;
+  }
+
+  function recordOutgoingEmail() {
+    const now = new Date();
+    const sentAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    onAddEmail({
+      id: crypto.randomUUID(),
+      candidateId: candidate.id,
+      candidateName: name,
+      sentAt,
+      direction: "送信",
+      subject: emailSubjectDraft.trim() || "件名なし",
+      summary: emailBodyDraft.trim().slice(0, 120) || "メールソフトで作成しました。",
+    });
+  }
+
+  async function copyEmailBody() {
+    await navigator.clipboard.writeText(emailBodyDraft);
+    setEmailCopied(true);
+    window.setTimeout(() => setEmailCopied(false), 1800);
+  }
+
   const hasExtracted = extracted && (
     extracted.email ||
     extracted.phone ||
@@ -356,7 +439,7 @@ function CandidateDetail({
     return matchesStage && matchesSearch;
   });
 
-  const tabs: Tab[] = ["基本情報", "書類", "評価", "質問", "履歴"];
+  const tabs: Tab[] = ["基本情報", "書類", "評価", "質問", "メール", "履歴"];
   const sortedStages = [...interviewStages].sort((a, b) => a.order - b.order);
   const currentStageIndex = getStageIndexForStatus(syncedStatus, sortedStages);
   const currentStage = currentStageIndex >= 0 ? sortedStages[currentStageIndex] : null;
@@ -929,6 +1012,99 @@ function CandidateDetail({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── メール ── */}
+        {activeTab === "メール" && (
+          <div className="space-y-4">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">候補者へのメール作成</p>
+                  <p className="mt-0.5 text-xs text-slate-500">テンプレートから文面を作成し、普段のメールソフトで送れます。</p>
+                </div>
+                <span className="rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
+                  {email || "メール未登録"}
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={labelCls}>テンプレート</label>
+                  <div className="relative">
+                    <select
+                      value={selectedEmailTemplateId}
+                      onChange={(event) => applyEmailTemplate(event.target.value)}
+                      className={selectCls}
+                    >
+                      {emailTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>{template.name}</option>
+                      ))}
+                    </select>
+                    <SelectArrow />
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>件名</label>
+                  <input
+                    type="text"
+                    value={emailSubjectDraft}
+                    onChange={(event) => setEmailSubjectDraft(event.target.value)}
+                    className={inputCls}
+                    placeholder="メール件名"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className={labelCls}>本文</label>
+                <textarea
+                  value={emailBodyDraft}
+                  onChange={(event) => setEmailBodyDraft(event.target.value)}
+                  rows={10}
+                  className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="メール本文"
+                />
+              </div>
+
+              <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500">
+                使える差し込み: {"{候補者名}"} / {"{職種}"} / {"{面接日}"} / {"{面接時刻}"} / {"{ZoomURL}"} / {"{選考ステージ}"}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <a
+                  href={email ? getMailtoHref() : undefined}
+                  onClick={(event) => {
+                    if (!email) {
+                      event.preventDefault();
+                      return;
+                    }
+                    recordOutgoingEmail();
+                  }}
+                  aria-disabled={!email}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
+                    email ? "bg-blue-600 hover:bg-blue-700" : "pointer-events-none bg-slate-300"
+                  }`}
+                >
+                  メールソフトを開く
+                </a>
+                <button
+                  type="button"
+                  onClick={copyEmailBody}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                >
+                  {emailCopied ? "コピーしました" : "本文をコピー"}
+                </button>
+                <button
+                  type="button"
+                  onClick={recordOutgoingEmail}
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                >
+                  履歴に記録
+                </button>
+              </div>
+            </section>
           </div>
         )}
 

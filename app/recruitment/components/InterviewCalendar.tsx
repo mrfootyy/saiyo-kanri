@@ -11,6 +11,7 @@ type InterviewEvent = {
   candidateName: string;
   stageName: string;
   recordId: string;
+  stageId?: string;
 };
 
 type Props = {
@@ -45,6 +46,7 @@ export default function InterviewCalendar({ candidates }: Props) {
           candidateName: candidate.name,
           stageName: record.stageName,
           recordId: record.id,
+          stageId: record.stageId,
         });
       }
     }
@@ -94,7 +96,7 @@ export default function InterviewCalendar({ candidates }: Props) {
     <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <div className="flex items-center gap-2">
-          <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <h2 className="text-sm font-semibold text-slate-700">面接カレンダー</h2>
@@ -216,7 +218,7 @@ export default function InterviewCalendar({ candidates }: Props) {
                 return (
                   <Link
                     key={ev.recordId}
-                    href={`/recruitment/candidates/${ev.candidateId}`}
+                    href={ev.stageId ? `/recruitment/candidates/${ev.candidateId}/stages/${ev.stageId}` : `/recruitment/candidates/${ev.candidateId}`}
                     className="flex h-[74px] items-center gap-3 px-5 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                   >
                     <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-500" aria-hidden="true" />

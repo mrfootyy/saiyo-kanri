@@ -228,6 +228,7 @@ export default function StageDetailPage() {
             interviewerOptions={interviewerOptions}
             getInterviewerMention={getInterviewerMention}
             slackChannelConfig={slackChannelConfig}
+            addSlackNotifications={addSlackNotifications}
             onSave={handleSave}
           />
         )}
@@ -247,6 +248,7 @@ function StageForm({
   interviewerOptions,
   getInterviewerMention,
   slackChannelConfig,
+  addSlackNotifications,
   onSave,
 }: {
   candidateId: string;
@@ -259,6 +261,7 @@ function StageForm({
   interviewerOptions: string[];
   getInterviewerMention: (name: string) => string;
   slackChannelConfig: SlackChannelConfig;
+  addSlackNotifications: (notifications: SlackNotification[]) => void;
   onSave: (records: InterviewRecord[], notifications: SlackNotification[]) => void;
 }) {
   const existing = records.find((r) => r.stageId ? r.stageId === stage.id : r.stageName === stage.name) ?? null;
@@ -295,6 +298,7 @@ function StageForm({
   const [micPermission, setMicPermission] = useState<PermissionState | "unsupported" | "unknown">("unknown");
   const [audioProcessing, setAudioProcessing] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [shareState, setShareState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const firstAutoSave = useRef(true);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -383,6 +387,38 @@ function StageForm({
     onSave(updated, notifications);
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 2500);
+  }
+
+  async function shareSchedule() {
+    if (interviewers.length === 0) return;
+    setShareState("sending");
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const mentions = interviewers.map((name) => getInterviewerMention(name)).join(" ");
+    const dateTime = [date, time].filter(Boolean).join(" ");
+    const zoomLine = zoomUrl ? `\nZoom URL: ${zoomUrl}` : "";
+    const notification: SlackNotification = {
+      id: crypto.randomUUID(),
+      candidateId,
+      candidateName,
+      sentAt: timestamp,
+      channel: slackChannelConfig.interviewAssign,
+      message: `${mentions} 【面接予定のご共有】\n候補者: ${candidateName}（${stage.name}）\n日時: ${dateTime || "未設定"}${zoomLine}`,
+    };
+    try {
+      await new Promise<void>((resolve, reject) => {
+        try {
+          addSlackNotifications([notification]);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      setShareState("sent");
+    } catch {
+      setShareState("error");
+    }
+    setTimeout(() => setShareState("idle"), 3000);
   }
 
   async function createZoomMeeting() {
@@ -683,8 +719,48 @@ function StageForm({
         <>
           {/* 実施概要 */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <h2 className="text-sm font-semibold text-slate-900">実施概要</h2>
+              {showInterviewers && (
+                <button
+                  onClick={shareSchedule}
+                  disabled={shareState === "sending" || interviewers.length === 0}
+                  title={interviewers.length === 0 ? "担当面接官を選択してください" : "面接予定をSlackで共有"}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    shareState === "sent"
+                      ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200 focus-visible:ring-green-400"
+                      : shareState === "error"
+                      ? "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200 focus-visible:ring-red-400"
+                      : "border border-slate-300 text-slate-600 hover:bg-slate-50 focus-visible:ring-slate-400"
+                  }`}
+                >
+                  {shareState === "sending" ? (
+                    <>
+                      <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                      送信中...
+                    </>
+                  ) : shareState === "sent" ? (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      送信しました
+                    </>
+                  ) : shareState === "error" ? (
+                    "送信エラー"
+                  ) : (
+                    <>
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      面接予定を共有
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             <div className="px-5 py-4">
               <div className={`grid gap-5 ${showFormat ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>

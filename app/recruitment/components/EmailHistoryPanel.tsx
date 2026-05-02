@@ -47,11 +47,9 @@ export default function EmailHistoryPanel({ histories, fullPage, onClearHistorie
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-        <div className="flex h-6 w-6 items-center justify-center rounded bg-blue-600">
-          <svg className="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </div>
+        <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
         <h3 className="text-sm font-semibold text-slate-700">メール履歴</h3>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-slate-400">{fullPage ? `${filtered.length} / ${histories.length}件` : `${visibleItems.length}件`}</span>
