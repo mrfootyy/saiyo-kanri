@@ -18,7 +18,7 @@ export function getStatusForStageName(stageName: string): CandidateStatus {
   return "書類選考";
 }
 
-function recordMatchesStage(record: InterviewRecord, stage: InterviewStage): boolean {
+export function recordMatchesStage(record: InterviewRecord, stage: InterviewStage): boolean {
   return record.stageId ? record.stageId === stage.id : record.stageName === stage.name;
 }
 

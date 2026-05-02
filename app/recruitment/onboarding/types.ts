@@ -15,8 +15,8 @@ export type OnboardingMember = {
   mentor: string;
   ojtOwner: string;
   onboardingStatus: OnboardingStatus;
-  condition: MemberCondition;
-  retentionRisk: RetentionRisk;
+  condition: MemberCondition | null;
+  retentionRisk: RetentionRisk | null;
   memo: string;
   updatedAt: string;
 };

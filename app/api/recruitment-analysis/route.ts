@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { requireAuthenticatedUser } from "../../../lib/serverAuth";
+import { apiError } from "../../../lib/apiError";
 
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 
@@ -10,14 +11,14 @@ export async function POST(req: NextRequest) {
     if ("response" in auth) return auth.response;
 
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "OPENAI_API_KEY が設定されていません。" }, { status: 500 });
+      return apiError("AI機能が設定されていません。管理者にお問い合わせください。", 500);
     }
 
     const body = await req.json();
     const { stats } = body as { stats: Record<string, unknown> };
 
     if (!stats) {
-      return NextResponse.json({ error: "stats is required" }, { status: 400 });
+      return apiError("分析データが指定されていません。", 400);
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -54,6 +55,6 @@ ${JSON.stringify(stats, null, 2)}
     return NextResponse.json({ insights });
   } catch (err) {
     console.error("recruitment-analysis error:", err);
-    return NextResponse.json({ error: "分析の生成に失敗しました。" }, { status: 500 });
+    return apiError("分析の生成に失敗しました。", 500);
   }
 }

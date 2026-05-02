@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRecruitment } from "../../../../../context";
+import { formatTimestamp } from "../../../../../dateUtils";
+import { recordMatchesStage } from "../../../../../statusUtils";
 import { Candidate, DocumentFile, InterviewAudioSummary, InterviewQuestion, InterviewRecord } from "../../../../../types";
 import { authFetch } from "../../../../../../../lib/authFetch";
 
@@ -18,7 +20,7 @@ export default function InterviewModePage() {
   const stage = interviewStages.find((item) => item.id === params.stageId);
 
   const existing = candidate?.interviewRecords.find((record) =>
-    stage ? (record.stageId ? record.stageId === stage.id : record.stageName === stage.name) : false
+    stage ? recordMatchesStage(record, stage) : false
   ) ?? null;
 
   const [audioSummary, setAudioSummary] = useState<InterviewAudioSummary | null>(existing?.audioSummary ?? null);
@@ -143,11 +145,11 @@ export default function InterviewModePage() {
     };
     const nextRecord = { ...baseRecord, notes: interviewNotes, audioSummary: next };
     const hasRecord = candidate.interviewRecords.some((record) =>
-      record.id === baseRecord.id || (record.stageId ? record.stageId === stage.id : record.stageName === stage.name)
+      record.id === baseRecord.id || recordMatchesStage(record, stage)
     );
     const interviewRecords = hasRecord
       ? candidate.interviewRecords.map((record) =>
-          record.id === baseRecord.id || (record.stageId ? record.stageId === stage.id : record.stageName === stage.name)
+          record.id === baseRecord.id || recordMatchesStage(record, stage)
             ? nextRecord
             : record
         )
@@ -171,11 +173,11 @@ export default function InterviewModePage() {
     };
     const nextRecord = { ...baseRecord, notes: interviewNotes };
     const hasRecord = candidate.interviewRecords.some((record) =>
-      record.id === baseRecord.id || (record.stageId ? record.stageId === stage.id : record.stageName === stage.name)
+      record.id === baseRecord.id || recordMatchesStage(record, stage)
     );
     const interviewRecords = hasRecord
       ? candidate.interviewRecords.map((record) =>
-          record.id === baseRecord.id || (record.stageId ? record.stageId === stage.id : record.stageName === stage.name)
+          record.id === baseRecord.id || recordMatchesStage(record, stage)
             ? nextRecord
             : record
         )
@@ -312,11 +314,11 @@ export default function InterviewModePage() {
   const isQuestionTab = activePanelTab === "質問";
 
   return (
-    <div className="flex h-full flex-col bg-slate-50">
+    <div className="flex min-h-full flex-col bg-slate-50">
       {/* ヘッダー */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+      <div className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <Link
               href={`/recruitment/candidates/${candidate.id}/stages/${stage.id}`}
               className="mb-2 inline-flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
@@ -326,12 +328,12 @@ export default function InterviewModePage() {
               </svg>
               評価画面に戻る
             </Link>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900">面接モード</h1>
+            <h1 className="break-words text-xl font-semibold tracking-tight text-slate-900">面接モード</h1>
             <p className="text-xs text-slate-400">{candidate.name} · {stage.name}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden flex-wrap items-center gap-2 lg:flex">
             {/* 録音コントロール */}
-            <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${recordingState === "recording" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+            <span className={`flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${recordingState === "recording" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
               {recordingState === "recording" ? `録音中 ${formatDuration(displaySeconds)}` : `録音 ${formatDuration(displaySeconds)}`}
             </span>
             {recordingState === "recording" ? (
@@ -356,16 +358,16 @@ export default function InterviewModePage() {
       </div>
 
       {/* メインコンテンツ */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 overflow-hidden p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid flex-1 grid-cols-1 gap-4 overflow-visible p-4 pb-24 sm:gap-5 sm:p-6 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_360px] lg:overflow-hidden lg:pb-6">
         {/* 面接中の参照パネル */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="flex min-h-0 flex-col overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm lg:overflow-hidden">
           <div className="flex-shrink-0 border-b border-slate-100">
-            <div className="flex items-center justify-between px-5 py-4">
-              <div>
+            <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="flex min-w-0 items-baseline gap-2">
                 <h2 className="text-sm font-semibold text-slate-900">
                   {isQuestionTab ? (editingQuestions ? "質問を管理" : "このステージの質問") : activePanelTab}
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="text-xs text-slate-400">
                   {isQuestionTab
                     ? editingQuestions
                       ? `全${allStageQuestions.length}件 · 有効${stageQuestions.length}件`
@@ -387,7 +389,7 @@ export default function InterviewModePage() {
                 </button>
               )}
             </div>
-            <div className="flex px-5" role="tablist" aria-label="面接中の表示切り替え">
+            <div className="flex overflow-x-auto px-4 sm:px-5" role="tablist" aria-label="面接中の表示切り替え">
               {panelTabs.map((tab) => (
                 <button
                   key={tab}
@@ -401,7 +403,7 @@ export default function InterviewModePage() {
                       setNewQuestionText("");
                     }
                   }}
-                  className={`mr-5 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-[-2px] ${
+                  className={`mr-5 flex-shrink-0 border-b-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-[-2px] ${
                     activePanelTab === tab
                       ? "border-blue-600 text-blue-600"
                       : "border-transparent text-slate-400 hover:text-slate-700"
@@ -413,7 +415,7 @@ export default function InterviewModePage() {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-visible px-4 py-4 sm:px-5 lg:overflow-y-auto">
             {activePanelTab === "質問" && (editingQuestions ? (
               /* 編集モード */
               <div className="space-y-2">
@@ -517,12 +519,12 @@ export default function InterviewModePage() {
         </section>
 
         {/* 録音・AI要約パネル */}
-        <aside className="min-h-0 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <aside className="min-h-0 overflow-visible rounded-xl border border-slate-200 bg-white shadow-sm lg:overflow-y-auto">
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-sm font-semibold text-slate-900">録音・AI要約</h2>
             <p className="mt-0.5 text-xs text-slate-500">停止後に文字起こしと要約を保存します。</p>
           </div>
-          <div className="space-y-4 px-5 py-4">
+          <div className="space-y-4 px-4 py-4 sm:px-5">
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <label htmlFor="interview-notes" className="text-xs font-semibold text-slate-600">
@@ -545,7 +547,7 @@ export default function InterviewModePage() {
                 onBlur={persistInterviewNotes}
                 rows={7}
                 placeholder="回答内容、気になった点、深掘りしたいことをメモ"
-                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 lg:resize-none"
               />
             </div>
             {audioSummary?.dataUrl ? (
@@ -574,28 +576,64 @@ export default function InterviewModePage() {
               </div>
             )}
             {(audioSummary?.summary || audioSummary?.transcript) && (
-              <div className="space-y-4 border-t border-slate-100 pt-4">
-                {audioSummary.summary && (
-                  <div>
-                    <p className="mb-1 text-xs font-semibold text-slate-500">AI要約</p>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{audioSummary.summary}</p>
-                  </div>
-                )}
-                <SummaryList title="評価できる点" items={audioSummary.highlights} />
-                <SummaryList title="懸念・確認点" items={audioSummary.concerns} />
-                <SummaryList title="次のアクション" items={audioSummary.nextActions} />
-                {audioSummary.transcript && (
-                  <details>
-                    <summary className="cursor-pointer text-xs font-semibold text-blue-700">文字起こしを見る</summary>
-                    <p className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
-                      {audioSummary.transcript}
-                    </p>
-                  </details>
-                )}
-              </div>
+              <details className="border-t border-slate-100 pt-4" open>
+                <summary className="cursor-pointer text-xs font-semibold text-blue-700">AI要約・文字起こし</summary>
+                <div className="mt-3 space-y-4">
+                  {audioSummary.summary && (
+                    <div>
+                      <p className="mb-1 text-xs font-semibold text-slate-500">AI要約</p>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{audioSummary.summary}</p>
+                    </div>
+                  )}
+                  <SummaryList title="評価できる点" items={audioSummary.highlights} />
+                  <SummaryList title="懸念・確認点" items={audioSummary.concerns} />
+                  <SummaryList title="次のアクション" items={audioSummary.nextActions} />
+                  {audioSummary.transcript && (
+                    <details>
+                      <summary className="cursor-pointer text-xs font-semibold text-blue-700">文字起こしを見る</summary>
+                      <p className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
+                        {audioSummary.transcript}
+                      </p>
+                    </details>
+                  )}
+                </div>
+              </details>
             )}
           </div>
         </aside>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-2">
+          <span className={`flex-1 rounded-full px-3 py-2 text-center text-xs font-semibold ${recordingState === "recording" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+            {recordingState === "recording" ? `録音中 ${formatDuration(displaySeconds)}` : `録音 ${formatDuration(displaySeconds)}`}
+          </span>
+          {recordingState === "recording" ? (
+            <button
+              type="button"
+              onClick={stopRecording}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700"
+            >
+              停止
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold ${micPermission === "denied" ? "border border-slate-300 bg-white text-slate-600" : "bg-blue-600 text-white"}`}
+            >
+              {micPermission === "denied" ? "マイク許可" : "録音開始"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={summarizeRecording}
+            disabled={!canSummarize || audioProcessing}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          >
+            {audioProcessing ? "要約中" : "AI要約"}
+          </button>
+        </div>
       </div>
 
     </div>
@@ -812,20 +850,42 @@ function DocumentPreview({ label, file }: { label: string; file: DocumentFile })
 }
 
 function QuestionCard({ question, index }: { question: InterviewQuestion; index: number }) {
+  const [answerOpen, setAnswerOpen] = useState(false);
+
   return (
-    <li className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+    <li className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="rounded bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">Q{index + 1}</span>
+        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">Q{index + 1}</span>
         {question.required && (
-          <span className="rounded bg-white px-2 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>
+          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-inset ring-blue-200">必須</span>
         )}
         {question.tags.map((tag) => (
-          <span key={tag} className="rounded bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-inset ring-slate-200">{tag}</span>
+          <span key={tag} className="rounded-md bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-inset ring-slate-200">{tag}</span>
         ))}
       </div>
-      <p className="text-base font-medium leading-relaxed text-slate-900">{question.text}</p>
+      <p className="break-words text-sm font-medium leading-relaxed text-slate-900">{question.text}</p>
       {question.modelAnswer && (
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-blue-700">{question.modelAnswer}</p>
+        <>
+          <button
+            type="button"
+            onClick={() => setAnswerOpen((v) => !v)}
+            className="mt-2 flex items-center gap-1 text-xs font-medium text-slate-500 transition-colors hover:text-slate-700 sm:hidden"
+          >
+            <svg
+              className={`h-3.5 w-3.5 transition-transform ${answerOpen ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            {answerOpen ? "模範回答を閉じる" : "模範回答を見る"}
+          </button>
+          <p className={`mt-2 whitespace-pre-wrap text-xs leading-relaxed text-slate-600 ${answerOpen ? "block" : "hidden sm:block"}`}>
+            {question.modelAnswer}
+          </p>
+        </>
       )}
     </li>
   );
@@ -848,9 +908,6 @@ function SummaryList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function formatTimestamp(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);

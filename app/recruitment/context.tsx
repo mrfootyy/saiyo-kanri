@@ -1,11 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { Candidate, CandidateStatus, EmailHistory, EmailTemplate, FlowTemplate, HireGoal, InterviewRecord, InterviewQuestion, InterviewStage, SlackChannelConfig, SlackNotification } from "./types";
+import { Candidate, CandidateStatus, EmailHistory, EmailTemplate, EvaluationConfig, FlowTemplate, HireGoal, InterviewRecord, InterviewQuestion, InterviewStage, NotificationTriggers, SlackChannelConfig, SlackNotification, StageTypeDef } from "./types";
+import { formatTimestamp } from "./dateUtils";
 import { mockCandidates, mockInterviewStages, mockSlackNotifications, mockEmailHistories, mockInterviewQuestions } from "./mockData";
-import { DEFAULT_POSITION_OPTION, INTERVIEWER_OPTIONS, POSITION_OPTIONS } from "./constants";
+import { DEFAULT_EVALUATION_CONFIG, DEFAULT_NOTIFICATION_TRIGGERS, INTERVIEWER_OPTIONS, POSITION_OPTIONS, STAGE_TYPE_OPTIONS } from "./constants";
 import { deriveCandidateStatusFromFlow } from "./statusUtils";
 import { authFetch } from "../../lib/authFetch";
+import * as holidayJp from "@holiday-jp/holiday_jp";
 
 const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
   {
@@ -86,6 +88,14 @@ type RecruitmentContextType = {
   deleteFlowTemplate: (id: string) => void;
   slackChannelConfig: SlackChannelConfig;
   setSlackChannelConfig: (config: SlackChannelConfig) => void;
+  stageTypeOptions: StageTypeDef[];
+  setStageTypeOptions: (options: StageTypeDef[]) => void;
+  evaluationConfig: EvaluationConfig;
+  setEvaluationConfig: (config: EvaluationConfig) => void;
+  getDocumentEvaluationItems: (position: string) => string[];
+  getInterviewEvaluationItems: (position: string) => string[];
+  notificationTriggers: NotificationTriggers;
+  setNotificationTriggers: (triggers: NotificationTriggers) => void;
 };
 
 const RecruitmentContext = createContext<RecruitmentContextType | null>(null);
@@ -104,9 +114,12 @@ type StoredRecruitmentData = {
   hireGoals?: HireGoal[];
   flowTemplates?: FlowTemplate[];
   slackChannelConfig?: SlackChannelConfig;
+  stageTypeOptions?: StageTypeDef[];
+  evaluationConfig?: EvaluationConfig;
+  notificationTriggers?: NotificationTriggers;
 };
 
-function isStoredRecruitmentData(value: unknown): value is StoredRecruitmentData {
+export function isStoredRecruitmentData(value: unknown): value is StoredRecruitmentData {
   if (!value || typeof value !== "object") return false;
   const data = value as Record<string, unknown>;
   return (
@@ -119,10 +132,9 @@ function isStoredRecruitmentData(value: unknown): value is StoredRecruitmentData
 }
 
 function normalizePositionOptions(options?: string[]) {
-  const normalized = [DEFAULT_POSITION_OPTION, ...(options ?? POSITION_OPTIONS)]
-    .map((position) => position.trim())
-    .filter(Boolean);
-  return Array.from(new Set(normalized));
+  const raw = options ?? [...POSITION_OPTIONS];
+  const normalized = raw.map((p) => p.trim()).filter(Boolean);
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : [...POSITION_OPTIONS];
 }
 
 function syncCandidateStatuses(candidates: Candidate[], stages: InterviewStage[]): Candidate[] {
@@ -136,6 +148,13 @@ function stripInterviewRecordAudio(record: InterviewRecord): InterviewRecord {
   if (!record.audioSummary?.dataUrl) return record;
   const { dataUrl: _dataUrl, ...audioSummary } = record.audioSummary;
   return { ...record, audioSummary };
+}
+
+function stripInterviewRecordAudioFromCandidate(candidate: Candidate): Candidate {
+  return {
+    ...candidate,
+    interviewRecords: candidate.interviewRecords.map(stripInterviewRecordAudio),
+  };
 }
 
 function stripCandidateFiles(candidate: Candidate): Candidate {
@@ -172,11 +191,14 @@ function mergeLocalCandidateFiles(remoteCandidates: Candidate[], localCandidates
 }
 
 export function RecruitmentProvider({ children }: { children: React.ReactNode }) {
-  const [candidates, setCandidates] = useState<Candidate[]>(() => syncCandidateStatuses(mockCandidates, mockInterviewStages));
-  const [interviewStages, setInterviewStages] = useState<InterviewStage[]>(mockInterviewStages);
-  const [slackNotifications, setSlackNotifications] = useState<SlackNotification[]>(mockSlackNotifications);
-  const [emailHistories, setEmailHistories] = useState<EmailHistory[]>(mockEmailHistories);
-  const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>(mockInterviewQuestions);
+  const isDev = process.env.NODE_ENV === "development";
+  const [candidates, setCandidates] = useState<Candidate[]>(() =>
+    isDev ? syncCandidateStatuses(mockCandidates, mockInterviewStages) : []
+  );
+  const [interviewStages, setInterviewStages] = useState<InterviewStage[]>(isDev ? mockInterviewStages : []);
+  const [slackNotifications, setSlackNotifications] = useState<SlackNotification[]>(isDev ? mockSlackNotifications : []);
+  const [emailHistories, setEmailHistories] = useState<EmailHistory[]>(isDev ? mockEmailHistories : []);
+  const [interviewQuestions, setInterviewQuestions] = useState<InterviewQuestion[]>(isDev ? mockInterviewQuestions : []);
   const [positionOptions, setPositionOptions] = useState<string[]>([...POSITION_OPTIONS]);
   const [interviewers, setInterviewers] = useState<string[]>([...INTERVIEWER_OPTIONS]);
   const [interviewerMentions, setInterviewerMentions] = useState<Record<string, string>>({});
@@ -184,8 +206,12 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   const [hireGoals, setHireGoals] = useState<HireGoal[]>([]);
   const [flowTemplates, setFlowTemplates] = useState<FlowTemplate[]>([]);
   const [slackChannelConfig, setSlackChannelConfig] = useState<SlackChannelConfig>(DEFAULT_SLACK_CHANNEL_CONFIG);
+  const [stageTypeOptions, setStageTypeOptions] = useState<StageTypeDef[]>(STAGE_TYPE_OPTIONS);
+  const [evaluationConfig, setEvaluationConfig] = useState<EvaluationConfig>(DEFAULT_EVALUATION_CONFIG);
+  const [notificationTriggers, setNotificationTriggers] = useState<NotificationTriggers>(DEFAULT_NOTIFICATION_TRIGGERS);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
   const sentEvaluationReminderIds = useRef(new Set<string>());
+  const pendingSaveRef = useRef<StoredRecruitmentData | null>(null);
 
   useEffect(() => {
     async function loadStoredData() {
@@ -235,6 +261,9 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       if (data.hireGoals) setHireGoals(data.hireGoals);
       if (data.flowTemplates) setFlowTemplates(data.flowTemplates);
       if (data.slackChannelConfig) setSlackChannelConfig(data.slackChannelConfig);
+      if (data.stageTypeOptions?.length) setStageTypeOptions(data.stageTypeOptions);
+      if (data.evaluationConfig) setEvaluationConfig(data.evaluationConfig);
+      if (data.notificationTriggers) setNotificationTriggers(data.notificationTriggers);
     }
 
     loadStoredData();
@@ -256,24 +285,38 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       hireGoals,
       flowTemplates,
       slackChannelConfig,
-    };
-    const remoteData: StoredRecruitmentData = {
-      ...data,
-      candidates: data.candidates.map(stripCandidateFiles),
+      stageTypeOptions,
+      evaluationConfig,
+      notificationTriggers,
     };
 
+    // localStorage: 音声dataUrlを除いてすぐ保存
+    const localData: StoredRecruitmentData = {
+      ...data,
+      candidates: data.candidates.map(stripInterviewRecordAudioFromCandidate),
+    };
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(localData));
     } catch (error) {
       console.error("Failed to save recruitment data to localStorage", error);
     }
 
+    // Supabase: ファイルも除いて debounce 保存
+    const remoteData: StoredRecruitmentData = {
+      ...data,
+      candidates: data.candidates.map(stripCandidateFiles),
+    };
+    pendingSaveRef.current = remoteData;
+
     const timeoutId = window.setTimeout(async () => {
+      const payload = pendingSaveRef.current;
+      if (!payload) return;
+      pendingSaveRef.current = null;
       try {
         const response = await authFetch("/api/recruitment-state", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(remoteData),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         if (!response.ok) {
           const result = await response.json().catch(() => null);
@@ -282,10 +325,11 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
       } catch (error) {
         console.error("Failed to save recruitment data to Supabase", error);
       }
-    }, 500);
+    }, 1000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [candidates, emailHistories, emailTemplates, flowTemplates, hasLoadedStorage, hireGoals, interviewerMentions, interviewQuestions, interviewStages, interviewers, positionOptions, slackChannelConfig, slackNotifications]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidates, emailHistories, emailTemplates, evaluationConfig, flowTemplates, hasLoadedStorage, hireGoals, interviewerMentions, interviewQuestions, interviewStages, interviewers, notificationTriggers, positionOptions, slackChannelConfig, slackNotifications, stageTypeOptions]);
 
   useEffect(() => {
     if (!hasLoadedStorage) return;
@@ -304,6 +348,16 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
     reminders.forEach((notification) => sentEvaluationReminderIds.current.add(notification.id));
     addSlackNotifications(reminders);
   }, [candidates, hasLoadedStorage, interviewStages, interviewerMentions, slackChannelConfig, slackNotifications]);
+
+  if (!hasLoadedStorage) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 px-6">
+        <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-sm">
+          採用データを読み込んでいます...
+        </div>
+      </div>
+    );
+  }
 
   function updateCandidate(updated: Candidate) {
     setCandidates((prev) =>
@@ -408,11 +462,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
   }
 
   function removePositionOption(name: string) {
-    if (name === DEFAULT_POSITION_OPTION) return;
-    setPositionOptions((prev) => {
-      const next = prev.filter((position) => position !== name);
-      return next.length > 0 ? next : [DEFAULT_POSITION_OPTION];
-    });
+    setPositionOptions((prev) => prev.length <= 1 ? prev : prev.filter((p) => p !== name));
   }
 
   function addInterviewer(name: string) {
@@ -450,6 +500,14 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
 
   function deleteEmailTemplate(id: string) {
     setEmailTemplates((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function getDocumentEvaluationItems(position: string): string[] {
+    return evaluationConfig.byPosition[position]?.documentItems ?? evaluationConfig.defaultDocumentItems;
+  }
+
+  function getInterviewEvaluationItems(position: string): string[] {
+    return evaluationConfig.byPosition[position]?.interviewItems ?? evaluationConfig.defaultInterviewItems;
   }
 
   function addFlowTemplate(t: FlowTemplate) {
@@ -501,15 +559,19 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         deleteFlowTemplate,
         slackChannelConfig,
         setSlackChannelConfig,
+        stageTypeOptions,
+        setStageTypeOptions,
+        evaluationConfig,
+        setEvaluationConfig,
+        getDocumentEvaluationItems,
+        getInterviewEvaluationItems,
+        notificationTriggers,
+        setNotificationTriggers,
       }}
     >
       {children}
     </RecruitmentContext.Provider>
   );
-}
-
-function formatTimestamp(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function buildEvaluationReminderNotifications(
@@ -614,105 +676,7 @@ function isBusinessDay(date: Date) {
 }
 
 function isJapaneseHoliday(date: Date) {
-  return getJapaneseHolidayKeys(date.getFullYear()).has(toDateKey(date));
-}
-
-function getJapaneseHolidayKeys(year: number) {
-  const base = new Set<string>();
-  const add = (month: number, day: number) => base.add(toDateKey(new Date(year, month - 1, day)));
-
-  add(1, 1);
-  add(2, 11);
-  if (year >= 2020) add(2, 23);
-  add(springEquinoxMonth(), springEquinoxDay(year));
-  add(4, 29);
-  add(5, 3);
-  add(5, 4);
-  add(5, 5);
-  add(8, 11);
-  add(autumnEquinoxMonth(), autumnEquinoxDay(year));
-  add(11, 3);
-  add(11, 23);
-
-  addDate(base, nthWeekdayOfMonth(year, 1, 1, 2)); // 成人の日
-  addDate(base, nthWeekdayOfMonth(year, 7, 1, 3)); // 海の日
-  addDate(base, nthWeekdayOfMonth(year, 9, 1, 3)); // 敬老の日
-  addDate(base, nthWeekdayOfMonth(year, 10, 1, 2)); // スポーツの日
-
-  // 東京オリンピックに伴う特例。過去データの営業日計算用に残しています。
-  if (year === 2020) {
-    base.delete(toDateKey(new Date(2020, 6, 20)));
-    base.delete(toDateKey(new Date(2020, 7, 11)));
-    base.delete(toDateKey(new Date(2020, 9, 12)));
-    addDate(base, new Date(2020, 6, 23));
-    addDate(base, new Date(2020, 6, 24));
-    addDate(base, new Date(2020, 7, 10));
-  }
-  if (year === 2021) {
-    base.delete(toDateKey(new Date(2021, 6, 19)));
-    base.delete(toDateKey(new Date(2021, 7, 11)));
-    base.delete(toDateKey(new Date(2021, 9, 11)));
-    addDate(base, new Date(2021, 6, 22));
-    addDate(base, new Date(2021, 6, 23));
-    addDate(base, new Date(2021, 7, 8));
-  }
-
-  const holidays = new Set(base);
-  for (const key of Array.from(base).sort()) {
-    const holiday = parseLocalDate(key);
-    if (!holiday || holiday.getDay() !== 0) continue;
-    const substitute = new Date(holiday);
-    do {
-      substitute.setDate(substitute.getDate() + 1);
-    } while (holidays.has(toDateKey(substitute)));
-    if (substitute.getFullYear() === year) holidays.add(toDateKey(substitute));
-  }
-
-  for (let month = 0; month < 12; month++) {
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    for (let day = 2; day < daysInMonth; day++) {
-      const current = new Date(year, month, day);
-      const key = toDateKey(current);
-      if (holidays.has(key)) continue;
-      const previous = new Date(current);
-      previous.setDate(current.getDate() - 1);
-      const next = new Date(current);
-      next.setDate(current.getDate() + 1);
-      if (holidays.has(toDateKey(previous)) && holidays.has(toDateKey(next))) {
-        holidays.add(key);
-      }
-    }
-  }
-
-  return holidays;
-}
-
-function springEquinoxMonth() {
-  return 3;
-}
-
-function autumnEquinoxMonth() {
-  return 9;
-}
-
-function springEquinoxDay(year: number) {
-  if (year <= 2099) return Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-  return 20;
-}
-
-function autumnEquinoxDay(year: number) {
-  if (year <= 2099) return Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-  return 23;
-}
-
-function nthWeekdayOfMonth(year: number, month: number, weekday: number, nth: number) {
-  const date = new Date(year, month - 1, 1);
-  const offset = (weekday - date.getDay() + 7) % 7;
-  return new Date(year, month - 1, 1 + offset + (nth - 1) * 7);
-}
-
-function addDate(set: Set<string>, date: Date) {
-  set.add(toDateKey(date));
+  return holidayJp.isHoliday(date);
 }
 
 function toDateKey(date: Date) {

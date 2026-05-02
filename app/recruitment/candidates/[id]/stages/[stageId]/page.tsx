@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRecruitment } from "../../../../context";
+import { formatTimestamp } from "../../../../dateUtils";
 import {
   EvaluationGrade,
   EvaluationItem,
@@ -16,8 +17,7 @@ import {
   SlackNotification,
   SlackChannelConfig,
 } from "../../../../types";
-import { STAGE_TYPE_OPTIONS, getDocumentEvaluationItems, getInterviewEvaluationItems } from "../../../../constants";
-import { deriveCandidateStatusFromFlow } from "../../../../statusUtils";
+import { deriveCandidateStatusFromFlow, recordMatchesStage } from "../../../../statusUtils";
 import { authFetch } from "../../../../../../lib/authFetch";
 
 const RESULT_OPTIONS: InterviewResult[] = ["通過", "保留", "不採用"];
@@ -67,7 +67,7 @@ function isStageAccessible(stage: InterviewStage, allStages: InterviewStage[], r
   const sorted = [...allStages].sort((a, b) => a.order - b.order);
   const idx = sorted.findIndex((s) => s.id === stage.id);
   for (let i = 0; i < idx; i++) {
-    const rec = records.find((r) => r.stageId ? r.stageId === sorted[i].id : r.stageName === sorted[i].name);
+    const rec = records.find((r) => recordMatchesStage(r, sorted[i]));
     if (!rec || rec.result !== "通過") return false;
   }
   return true;
@@ -75,7 +75,7 @@ function isStageAccessible(stage: InterviewStage, allStages: InterviewStage[], r
 
 export default function StageDetailPage() {
   const params = useParams();
-  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions, interviewQuestions, getInterviewerMention, slackChannelConfig } = useRecruitment();
+  const { candidates, interviewStages, updateCandidate, addSlackNotifications, interviewers: interviewerOptions, interviewQuestions, getInterviewerMention, slackChannelConfig, notificationTriggers } = useRecruitment();
 
   const candidate = candidates.find((c) => c.id === params.id);
   const stage = interviewStages.find((s) => s.id === params.stageId);
@@ -105,7 +105,7 @@ export default function StageDetailPage() {
     const newStatus = deriveCandidateStatusFromFlow(updatedRecords, interviewStages, candidate!.status);
     const visibleNotifications = notifications.filter((n) => n.channel !== "面接官DM");
 
-    if (newStatus !== candidate!.status) {
+    if (notificationTriggers.statusChange && newStatus !== candidate!.status) {
       const statusLine = `ステータスも「${candidate!.status}」から「${newStatus}」に更新されました。`;
       const ch = visibleNotifications.find((n) => n.channel === "#採用チャンネル");
       if (ch) {
@@ -139,21 +139,21 @@ export default function StageDetailPage() {
           </svg>
           {candidate.name}
         </Link>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white" aria-hidden="true">
               {sortedIdx + 1}
             </span>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-slate-900">{stage.name}</h1>
+            <div className="min-w-0">
+              <h1 className="break-words text-xl font-semibold tracking-tight text-slate-900">{stage.name}</h1>
               <p className="text-xs text-slate-400">{candidate.name} · {candidate.position}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0 sm:pb-0">
             {accessible && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${stage.id}/interview`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
               >
                 面接モード
               </Link>
@@ -161,7 +161,7 @@ export default function StageDetailPage() {
             {prevStage && (
               <Link
                 href={`/recruitment/candidates/${candidate.id}/stages/${prevStage.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
               >
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 19l-7-7 7-7" />
@@ -173,7 +173,7 @@ export default function StageDetailPage() {
               nextAccessible ? (
                 <Link
                   href={`/recruitment/candidates/${candidate.id}/stages/${nextStage.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                 >
                   {nextStage.name}
                   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -181,7 +181,7 @@ export default function StageDetailPage() {
                   </svg>
                 </Link>
               ) : (
-                <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-400">
+                <span className="inline-flex flex-shrink-0 cursor-not-allowed items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-400">
                   {nextStage.name}
                   <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -264,10 +264,12 @@ function StageForm({
   addSlackNotifications: (notifications: SlackNotification[]) => void;
   onSave: (records: InterviewRecord[], notifications: SlackNotification[]) => void;
 }) {
-  const existing = records.find((r) => r.stageId ? r.stageId === stage.id : r.stageName === stage.name) ?? null;
+  const { stageTypeOptions, getDocumentEvaluationItems, getInterviewEvaluationItems, notificationTriggers } = useRecruitment();
+
+  const existing = records.find((r) => recordMatchesStage(r, stage)) ?? null;
   const recordIdRef = useRef(existing?.id ?? crypto.randomUUID());
 
-  const stageDef = STAGE_TYPE_OPTIONS.find((s) => s.name === stage.name);
+  const stageDef = stageTypeOptions.find((s) => s.name === stage.name);
   const showInterviewers = stageDef?.hasInterviewers ?? true;
   const showFormat = stageDef?.hasFormat ?? true;
   const isDocumentStage = !stageDef?.hasInterviewers && !stageDef?.hasFormat;
@@ -351,7 +353,7 @@ function StageForm({
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
     const currentRecord = records.find((r) =>
-      r.id === record.id || (r.stageId ? r.stageId === stage.id : r.stageName === stage.name)
+      r.id === record.id || recordMatchesStage(r, stage)
     );
     const updated = currentRecord
       ? records.map((r) => (r.id === currentRecord.id ? { ...record, id: currentRecord.id } : r))
@@ -359,7 +361,7 @@ function StageForm({
 
     const notifications: SlackNotification[] = [];
 
-    if (record.result !== null && record.result !== existing?.result) {
+    if (notificationTriggers.resultChange && record.result !== null && record.result !== existing?.result) {
       notifications.push({
         id: crypto.randomUUID(),
         candidateId,
@@ -372,7 +374,7 @@ function StageForm({
 
     const prevInterviewers = new Set(currentRecord?.interviewers ?? []);
     const addedInterviewers = record.interviewers.filter((name) => !prevInterviewers.has(name));
-    if (addedInterviewers.length > 0) {
+    if (notificationTriggers.interviewerAssign && addedInterviewers.length > 0) {
       const mentions = addedInterviewers.map((name) => getInterviewerMention(name)).join(" ");
       notifications.push({
         id: crypto.randomUUID(),
@@ -390,7 +392,7 @@ function StageForm({
   }
 
   async function shareSchedule() {
-    if (interviewers.length === 0) return;
+    if (interviewers.length === 0 || !notificationTriggers.scheduleShare) return;
     setShareState("sending");
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -1181,9 +1183,6 @@ function EvaluationCard({
   );
 }
 
-function formatTimestamp(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
 
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);

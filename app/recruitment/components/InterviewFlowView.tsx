@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { FlowTemplate, InterviewFormat, InterviewStage } from "../types";
-import { STAGE_TYPE_OPTIONS } from "../constants";
 import { useRecruitment } from "../context";
 
 type Props = {
@@ -24,12 +23,12 @@ const emptyForm = (): FormState => ({
   description: "",
 });
 
-function getStageDef(name: string) {
-  return STAGE_TYPE_OPTIONS.find((s) => s.name === name) ?? null;
-}
-
 export default function InterviewFlowView({ stages, onUpdate }: Props) {
-  const { interviewers: interviewerOptions, flowTemplates, addFlowTemplate, deleteFlowTemplate } = useRecruitment();
+  const { interviewers: interviewerOptions, flowTemplates, addFlowTemplate, deleteFlowTemplate, stageTypeOptions } = useRecruitment();
+
+  function getStageDef(name: string) {
+    return stageTypeOptions.find((s) => s.name === name) ?? null;
+  }
   const sorted = [...stages].sort((a, b) => a.order - b.order);
   const [templateName, setTemplateName] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -404,7 +403,7 @@ export default function InterviewFlowView({ stages, onUpdate }: Props) {
                     className="w-full appearance-none rounded-lg border border-slate-300 bg-white pl-3 pr-9 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   >
                     <option value="">選考を選択してください</option>
-                    {STAGE_TYPE_OPTIONS.map((opt) => (
+                    {stageTypeOptions.map((opt) => (
                       <option key={opt.name} value={opt.name}>{opt.name}</option>
                     ))}
                   </select>

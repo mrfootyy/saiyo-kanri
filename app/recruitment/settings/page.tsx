@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { authFetch } from "../../../lib/authFetch";
 import { useRecruitment } from "../context";
-import { Candidate, EmailTemplate } from "../types";
+import { Candidate, EmailTemplate, EvaluationConfig, NotificationTriggers, StageTypeDef } from "../types";
 
-type SettingsTab = "面接官" | "メールテンプレート" | "Slack設定" | "バックアップ";
+type SettingsTab = "面接官" | "職種マスタ" | "ステージタイプ" | "評価項目" | "通知設定" | "メールテンプレート" | "Slack設定" | "バックアップ";
 
 const TEMPLATE_CATEGORIES: EmailTemplate["category"][] = ["書類選考", "面接案内", "合否通知", "内定", "その他"];
 
@@ -37,7 +37,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex overflow-x-auto rounded-xl border border-slate-200 bg-white px-4 shadow-sm" role="tablist" aria-label="設定タブ">
-        {(["面接官", "メールテンプレート", "Slack設定", "バックアップ"] as SettingsTab[]).map((tab) => (
+        {(["面接官", "職種マスタ", "ステージタイプ", "評価項目", "通知設定", "Slack設定", "バックアップ"] as SettingsTab[]).map((tab) => (
           <button
             key={tab}
             role="tab"
@@ -56,9 +56,368 @@ export default function SettingsPage() {
 
       <div>
         {activeTab === "面接官" && <InterviewersTab />}
+        {activeTab === "職種マスタ" && <PositionOptionsTab />}
+        {activeTab === "ステージタイプ" && <StageTypeOptionsTab />}
+        {activeTab === "評価項目" && <EvaluationConfigTab />}
+        {activeTab === "通知設定" && <NotificationTriggersTab />}
         {activeTab === "メールテンプレート" && <EmailTemplatesTab />}
         {activeTab === "Slack設定" && <SlackSettingsTab />}
         {activeTab === "バックアップ" && <BackupTab />}
+      </div>
+    </div>
+  );
+}
+
+function PositionOptionsTab() {
+  const { positionOptions, addPositionOption, removePositionOption } = useRecruitment();
+  const [input, setInput] = useState("");
+
+  function handleAdd() {
+    const name = input.trim();
+    if (!name) return;
+    addPositionOption(name);
+    setInput("");
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-900">職種マスタ</h2>
+          <p className="mt-0.5 text-sm text-slate-500">応募者登録や分析で使用する職種の選択肢を管理します。</p>
+        </div>
+        <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-6">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="例：Webデザイナー"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!input.trim()}
+              className="flex-shrink-0 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              追加
+            </button>
+          </div>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {positionOptions.map((position) => (
+            <li key={position} className="flex items-center justify-between gap-3 px-6 py-3.5">
+              <span className="text-sm text-slate-800">{position}</span>
+              <button
+                type="button"
+                onClick={() => removePositionOption(position)}
+                disabled={positionOptions.length <= 1}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                削除
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function StageTypeOptionsTab() {
+  const { stageTypeOptions, setStageTypeOptions } = useRecruitment();
+  const [newName, setNewName] = useState("");
+
+  function handleAdd() {
+    const name = newName.trim();
+    if (!name || stageTypeOptions.some((s) => s.name === name)) return;
+    setStageTypeOptions([...stageTypeOptions, { name, hasInterviewers: true, hasFormat: true, defaultDescription: "" }]);
+    setNewName("");
+  }
+
+  function handleToggle(index: number, field: "hasInterviewers" | "hasFormat") {
+    setStageTypeOptions(stageTypeOptions.map((s, i) => i === index ? { ...s, [field]: !s[field] } : s));
+  }
+
+  function handleRename(index: number, name: string) {
+    setStageTypeOptions(stageTypeOptions.map((s, i) => i === index ? { ...s, name } : s));
+  }
+
+  function handleDelete(index: number) {
+    if (stageTypeOptions.length <= 1) return;
+    setStageTypeOptions(stageTypeOptions.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="max-w-3xl">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-900">ステージタイプ</h2>
+          <p className="mt-0.5 text-sm text-slate-500">選考フローで使用できるステージの種類を定義します。変更は新しい選考フロー設定に反映されます。</p>
+        </div>
+        <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-4 sm:px-6">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="例：グループ面接"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!newName.trim()}
+              className="flex-shrink-0 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              追加
+            </button>
+          </div>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {stageTypeOptions.map((stage, i) => (
+            <li key={i} className="px-4 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={stage.name}
+                  onChange={(e) => handleRename(i, e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleDelete(i)}
+                  disabled={stageTypeOptions.length <= 1}
+                  className="flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                >
+                  削除
+                </button>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-5">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={stage.hasInterviewers}
+                    onChange={() => handleToggle(i, "hasInterviewers")}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                  />
+                  <span className="text-xs text-slate-600">担当面接官を設定できる</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={stage.hasFormat}
+                    onChange={() => handleToggle(i, "hasFormat")}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                  />
+                  <span className="text-xs text-slate-600">オンライン/対面の形式を選択できる</span>
+                </label>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function EvaluationConfigTab() {
+  const { positionOptions, evaluationConfig, setEvaluationConfig } = useRecruitment();
+  const [evalType, setEvalType] = useState<"interview" | "document">("interview");
+  const [selectedPosition, setSelectedPosition] = useState<"デフォルト" | string>("デフォルト");
+  const [newItem, setNewItem] = useState("");
+
+  const positions = ["デフォルト", ...positionOptions];
+
+  function getCurrentItems(): string[] {
+    if (selectedPosition === "デフォルト") {
+      return evalType === "interview" ? evaluationConfig.defaultInterviewItems : evaluationConfig.defaultDocumentItems;
+    }
+    return evalType === "interview"
+      ? (evaluationConfig.byPosition[selectedPosition]?.interviewItems ?? evaluationConfig.defaultInterviewItems)
+      : (evaluationConfig.byPosition[selectedPosition]?.documentItems ?? evaluationConfig.defaultDocumentItems);
+  }
+
+  function setCurrentItems(items: string[]) {
+    if (selectedPosition === "デフォルト") {
+      setEvaluationConfig({
+        ...evaluationConfig,
+        [evalType === "interview" ? "defaultInterviewItems" : "defaultDocumentItems"]: items,
+      });
+    } else {
+      const existing = evaluationConfig.byPosition[selectedPosition] ?? {
+        interviewItems: evaluationConfig.defaultInterviewItems,
+        documentItems: evaluationConfig.defaultDocumentItems,
+      };
+      setEvaluationConfig({
+        ...evaluationConfig,
+        byPosition: {
+          ...evaluationConfig.byPosition,
+          [selectedPosition]: {
+            ...existing,
+            [evalType === "interview" ? "interviewItems" : "documentItems"]: items,
+          },
+        },
+      });
+    }
+  }
+
+  function handleAdd() {
+    const item = newItem.trim();
+    if (!item) return;
+    const current = getCurrentItems();
+    if (current.includes(item)) return;
+    setCurrentItems([...current, item]);
+    setNewItem("");
+  }
+
+  function handleRemove(item: string) {
+    setCurrentItems(getCurrentItems().filter((i) => i !== item));
+  }
+
+  const isCustomized = selectedPosition !== "デフォルト" && !!evaluationConfig.byPosition[selectedPosition];
+
+  function resetToDefault() {
+    if (selectedPosition === "デフォルト") return;
+    const next = { ...evaluationConfig.byPosition };
+    delete next[selectedPosition];
+    setEvaluationConfig({ ...evaluationConfig, byPosition: next });
+  }
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-900">評価項目</h2>
+          <p className="mt-0.5 text-sm text-slate-500">面接・書類選考で使う評価観点を職種ごとに設定できます。</p>
+        </div>
+        <div className="space-y-4 px-6 py-5">
+          <div className="flex gap-2">
+            {(["interview", "document"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setEvalType(type)}
+                aria-pressed={evalType === type}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${evalType === type ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}
+              >
+                {type === "interview" ? "面接評価" : "書類評価"}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {positions.map((pos) => (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setSelectedPosition(pos)}
+                aria-pressed={selectedPosition === pos}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${selectedPosition === pos ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+              >
+                {pos}
+                {pos !== "デフォルト" && evaluationConfig.byPosition[pos] && (
+                  <span className="ml-1.5 rounded-full bg-white/20 px-1 text-[10px]">カスタム</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {isCustomized && (
+            <button
+              type="button"
+              onClick={resetToDefault}
+              className="text-xs font-medium text-slate-400 underline hover:text-slate-600"
+            >
+              デフォルト設定に戻す
+            </button>
+          )}
+
+          <ul className="space-y-2">
+            {getCurrentItems().map((item) => (
+              <li key={item} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                <span className="text-sm text-slate-800">{item}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(item)}
+                  className="flex-shrink-0 text-slate-400 transition-colors hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  aria-label={`${item}を削除`}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="評価項目を追加"
+              className={inputCls}
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!newItem.trim()}
+              className="flex-shrink-0 whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              追加
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotificationTriggersTab() {
+  const { notificationTriggers, setNotificationTriggers } = useRecruitment();
+
+  function toggle(key: keyof NotificationTriggers) {
+    setNotificationTriggers({ ...notificationTriggers, [key]: !notificationTriggers[key] });
+  }
+
+  const items: { key: keyof NotificationTriggers; label: string; description: string }[] = [
+    { key: "resultChange", label: "合否判定変更時", description: "面接ステージで合否・保留の判定を入力したときにSlackへ通知します。" },
+    { key: "interviewerAssign", label: "面接官アサイン時", description: "面接ステージに面接官を新たに追加したときにSlackへメンション通知します。" },
+    { key: "scheduleShare", label: "面接予定共有時", description: "「面接予定を共有」ボタンを押したときにSlackへ通知します。" },
+    { key: "statusChange", label: "ステータス変更時", description: "合否判定の結果で候補者のステータスが変わったときに追加でSlackへ通知します。" },
+  ];
+
+  return (
+    <div className="max-w-2xl">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-6 py-5">
+          <h2 className="text-sm font-semibold text-slate-900">通知設定</h2>
+          <p className="mt-0.5 text-sm text-slate-500">どのイベントでSlack通知を送るかをON/OFFで制御します。</p>
+        </div>
+        <ul className="divide-y divide-slate-100">
+          {items.map(({ key, label, description }) => (
+            <li key={key} className="flex items-center justify-between gap-4 px-6 py-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-800">{label}</p>
+                <p className="mt-0.5 text-xs text-slate-500">{description}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notificationTriggers[key]}
+                onClick={() => toggle(key)}
+                className={`relative flex-shrink-0 h-7 w-12 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${notificationTriggers[key] ? "bg-blue-600" : "bg-slate-200"}`}
+              >
+                <span className={`block h-5 w-5 rounded-full bg-white shadow transition-transform mx-1 ${notificationTriggers[key] ? "translate-x-5" : "translate-x-0"}`} />
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

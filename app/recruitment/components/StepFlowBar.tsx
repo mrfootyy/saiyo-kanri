@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CandidateStatus, InterviewRecord, InterviewStage } from "../types";
-import { getStageIndexForStatus, isTerminalStatus } from "../statusUtils";
+import { getStageIndexForStatus, isTerminalStatus, recordMatchesStage } from "../statusUtils";
 
 type StageState = "passed" | "active" | "pending" | "rejected_here" | "locked";
 
@@ -14,7 +14,7 @@ function getStageState(
   manualStatus: CandidateStatus
 ): StageState {
   const findRecordForStage = (target: InterviewStage) =>
-    records.find((record) => record.stageId ? record.stageId === target.id : record.stageName === target.name);
+    records.find((record) => recordMatchesStage(record, target));
 
   if (manualStatus === "不採用" || manualStatus === "辞退") {
     const record = findRecordForStage(stage);
@@ -26,7 +26,7 @@ function getStageState(
   if (manualStatus === "内定") return "passed";
 
   const lastRecordedIndex = sorted.reduce((max, s, i) => {
-    return records.some((r) => r.stageId ? r.stageId === s.id : r.stageName === s.name) ? i : max;
+    return records.some((r) => recordMatchesStage(r, s)) ? i : max;
   }, -1);
 
   const record = findRecordForStage(stage);

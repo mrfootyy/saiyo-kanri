@@ -265,8 +265,8 @@ function MemberDetail({ memberId }: { memberId: string }) {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight text-slate-900">{member.name}</h1>
-              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[member.condition]}`}>{member.condition}</span>
-              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[member.retentionRisk]}`}>リスク: {member.retentionRisk}</span>
+              {member.condition && <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${CONDITION_BADGE[member.condition]}`}>{member.condition}</span>}
+              {member.retentionRisk && <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${RISK_BADGE[member.retentionRisk]}`}>リスク: {member.retentionRisk}</span>}
             </div>
             <p className="mt-1 text-sm text-slate-500">{member.position} · {member.department} · 入社日: {member.joinedAt}</p>
           </div>

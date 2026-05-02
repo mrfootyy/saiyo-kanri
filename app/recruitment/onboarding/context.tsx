@@ -97,7 +97,7 @@ function isOnboardingData(value: unknown): value is OnboardingData {
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<OnboardingData>(getDefaultData);
+  const [data, setData] = useState<OnboardingData | null>(null);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   useEffect(() => {
-    if (!hasLoadedStorage) return;
+    if (!hasLoadedStorage || !data) return;
     saveToStorage(data);
 
     const timeoutId = window.setTimeout(async () => {
@@ -151,6 +151,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   function update(next: OnboardingData) {
     setData(next);
+  }
+
+  if (!data) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center bg-slate-50 px-6">
+        <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-sm">
+          オンボーディングデータを読み込んでいます...
+        </div>
+      </div>
+    );
   }
 
   const value: OnboardingContextType = {

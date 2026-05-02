@@ -1,4 +1,4 @@
-import type { CandidateStatus } from "./types";
+import type { CandidateStatus, StageTypeDef, EvaluationConfig, NotificationTriggers } from "./types";
 
 export const ACTIVE_STATUSES: CandidateStatus[] = ["応募受付", "書類選考", "一次面接", "最終面接"];
 
@@ -33,13 +33,6 @@ export const INTERVIEWER_OPTIONS = [
 ] as const;
 
 export const INTERVIEW_FORMAT_OPTIONS = ["オンライン", "対面"] as const;
-
-export type StageTypeDef = {
-  name: string;
-  hasInterviewers: boolean;
-  hasFormat: boolean;
-  defaultDescription: string;
-};
 
 export const STAGE_TYPE_OPTIONS: StageTypeDef[] = [
   { name: "書類選考",        hasInterviewers: false, hasFormat: false, defaultDescription: "書類・ポートフォリオによる一次スクリーニング" },
@@ -111,3 +104,24 @@ export function getDocumentEvaluationItems(position: string): string[] {
 export function getInterviewEvaluationItems(position: string): string[] {
   return INTERVIEW_EVALUATION_BY_POSITION[position] ?? DEFAULT_EVALUATION_ITEMS;
 }
+
+export const DEFAULT_EVALUATION_CONFIG: EvaluationConfig = {
+  defaultInterviewItems: DEFAULT_EVALUATION_ITEMS,
+  defaultDocumentItems: [...DOCUMENT_EVALUATION_BASE],
+  byPosition: Object.fromEntries(
+    Object.keys(INTERVIEW_EVALUATION_BY_POSITION).map((pos) => [
+      pos,
+      {
+        interviewItems: INTERVIEW_EVALUATION_BY_POSITION[pos] ?? DEFAULT_EVALUATION_ITEMS,
+        documentItems: DOCUMENT_EVALUATION_BY_POSITION[pos] ?? [...DOCUMENT_EVALUATION_BASE],
+      },
+    ])
+  ),
+};
+
+export const DEFAULT_NOTIFICATION_TRIGGERS: NotificationTriggers = {
+  resultChange: true,
+  interviewerAssign: true,
+  scheduleShare: true,
+  statusChange: true,
+};

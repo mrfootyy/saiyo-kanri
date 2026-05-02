@@ -210,18 +210,20 @@ function CandidateDetail({
   const [questionStageFilter, setQuestionStageFilter] = useState("すべて");
   const [candidateQuestionStageFilter, setCandidateQuestionStageFilter] = useState("すべて");
   const [questionSearch, setQuestionSearch] = useState("");
-  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState(emailTemplates[0]?.id ?? "");
-  const [emailSubjectDraft, setEmailSubjectDraft] = useState(() => renderEmailTemplate(emailTemplates[0]?.subject ?? "", candidate, candidate.interviewRecords));
-  const [emailBodyDraft, setEmailBodyDraft] = useState(() => renderEmailTemplate(emailTemplates[0]?.body ?? "", candidate, candidate.interviewRecords));
-  const [emailCopied, setEmailCopied] = useState(false);
+  const [emailDraft, setEmailDraft] = useState(() => ({
+    templateId: emailTemplates[0]?.id ?? "",
+    subject: renderEmailTemplate(emailTemplates[0]?.subject ?? "", candidate, candidate.interviewRecords),
+    body: renderEmailTemplate(emailTemplates[0]?.body ?? "", candidate, candidate.interviewRecords),
+    copied: false,
+  }));
 
   const [resumeFile, setResumeFile] = useState<DocumentFile | undefined>(candidate.resumeFile);
   const [cvFile, setCvFile] = useState<DocumentFile | undefined>(candidate.cvFile);
   const [portfolioUrl, setPortfolioUrl] = useState(candidate.portfolioUrl ?? "");
   const [portfolioFile, setPortfolioFile] = useState<DocumentFile | undefined>(candidate.portfolioFile);
-  const [extracting, setExtracting] = useState(false);
-  const [extracted, setExtracted] = useState<ExtractedInfo | null>(null);
-  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extract, setExtract] = useState<{ loading: boolean; data: ExtractedInfo | null; error: string | null }>({
+    loading: false, data: null, error: null,
+  });
 
   const records = candidate.interviewRecords;
   const candidateSlacks = allSlack.filter((s) => s.candidateId === candidate.id);
@@ -267,17 +269,15 @@ function CandidateDetail({
     onUpdate(buildCandidateUpdate(documentPatch));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-    setExtracted(null);
-    setExtractError(null);
+    setExtract({ loading: false, data: null, error: null });
     if (!file) return;
-    setExtracting(true);
+    setExtract({ loading: true, data: null, error: null });
     const result = await extractFromFile(file.dataUrl, file.type);
-    setExtracting(false);
     if (isExtractError(result)) {
-      setExtractError(result.message);
+      setExtract({ loading: false, data: null, error: result.message });
     } else {
       const extractedPatch = applyExtractedToForm(result);
-      setExtracted(result);
+      setExtract({ loading: false, data: result, error: null });
       onUpdate(buildCandidateUpdate({ ...documentPatch, ...extractedPatch }));
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -322,9 +322,9 @@ function CandidateDetail({
   }
 
   function applyExtracted() {
-    if (!extracted) return;
-    onUpdate(buildCandidateUpdate(applyExtractedToForm(extracted)));
-    setExtracted(null);
+    if (!extract.data) return;
+    onUpdate(buildCandidateUpdate(applyExtractedToForm(extract.data)));
+    setExtract({ loading: false, data: null, error: null });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
     setActiveTab("基本情報");
@@ -371,17 +371,20 @@ function CandidateDetail({
   };
 
   function applyEmailTemplate(templateId: string) {
-    setSelectedEmailTemplateId(templateId);
     const template = emailTemplates.find((item) => item.id === templateId);
     if (!template) return;
-    setEmailSubjectDraft(renderEmailTemplate(template.subject, emailCandidate, records));
-    setEmailBodyDraft(renderEmailTemplate(template.body, emailCandidate, records));
+    setEmailDraft((d) => ({
+      ...d,
+      templateId,
+      subject: renderEmailTemplate(template.subject, emailCandidate, records),
+      body: renderEmailTemplate(template.body, emailCandidate, records),
+    }));
   }
 
   function getMailtoHref() {
     const params = new URLSearchParams({
-      subject: emailSubjectDraft,
-      body: emailBodyDraft,
+      subject: emailDraft.subject,
+      body: emailDraft.body,
     });
     return `mailto:${encodeURIComponent(email.trim())}?${params.toString()}`;
   }
@@ -395,23 +398,23 @@ function CandidateDetail({
       candidateName: name,
       sentAt,
       direction: "送信",
-      subject: emailSubjectDraft.trim() || "件名なし",
-      summary: emailBodyDraft.trim().slice(0, 120) || "メールソフトで作成しました。",
+      subject: emailDraft.subject.trim() || "件名なし",
+      summary: emailDraft.body.trim().slice(0, 120) || "メールソフトで作成しました。",
     });
   }
 
   async function copyEmailBody() {
-    await navigator.clipboard.writeText(emailBodyDraft);
-    setEmailCopied(true);
-    window.setTimeout(() => setEmailCopied(false), 1800);
+    await navigator.clipboard.writeText(emailDraft.body);
+    setEmailDraft((d) => ({ ...d, copied: true }));
+    window.setTimeout(() => setEmailDraft((d) => ({ ...d, copied: false })), 1800);
   }
 
-  const hasExtracted = extracted && (
-    extracted.email ||
-    extracted.phone ||
-    extracted.age ||
-    extracted.skills?.length ||
-    extracted.companies?.length
+  const hasExtracted = extract.data && (
+    extract.data.email ||
+    extract.data.phone ||
+    extract.data.age ||
+    extract.data.skills?.length ||
+    extract.data.companies?.length
   );
   const syncedStatus = deriveCandidateStatusFromFlow(records, interviewStages, status);
   const questionById = new Map(interviewQuestions.map((q) => [q.id, q]));
@@ -439,7 +442,7 @@ function CandidateDetail({
     return matchesStage && matchesSearch;
   });
 
-  const tabs: Tab[] = ["基本情報", "書類", "評価", "質問", "メール", "履歴"];
+  const tabs: Tab[] = ["基本情報", "書類", "評価", "質問", "履歴"];
   const sortedStages = [...interviewStages].sort((a, b) => a.order - b.order);
   const currentStageIndex = getStageIndexForStatus(syncedStatus, sortedStages);
   const currentStage = currentStageIndex >= 0 ? sortedStages[currentStageIndex] : null;
@@ -513,13 +516,13 @@ function CandidateDetail({
             }`}
           >
             {tab}
-            {tab === "書類" && extracting && (
+            {tab === "書類" && extract.loading && (
               <span className="ml-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" aria-hidden="true" />
             )}
-            {tab === "書類" && hasExtracted && !extracting && (
+            {tab === "書類" && hasExtracted && !extract.loading && (
               <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
             )}
-            {tab === "書類" && extractError && !extracting && (
+            {tab === "書類" && extract.error && !extract.loading && (
               <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-slate-500" aria-hidden="true" />
             )}
           </button>
@@ -686,7 +689,7 @@ function CandidateDetail({
                 file={cvFile}
                 onChange={handleCvUpload}
               />
-              {extracting && (
+              {extract.loading && (
                 <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
                   <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -695,27 +698,27 @@ function CandidateDetail({
                   AIで解析中...
                 </div>
               )}
-              {!extracting && extractError && (
+              {!extract.loading && extract.error && (
                 <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700">
                   <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {extractError}
+                  {extract.error}
                 </div>
               )}
-              {!extracting && extracted && (
+              {!extract.loading && extract.data && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs">
                   <p className="mb-2 font-semibold text-blue-800">読み取り結果（基本情報に自動反映済み）</p>
                   {hasExtracted ? (
                     <>
                       <div className="space-y-1 text-blue-700">
-                        {extracted.email && <p>メールアドレス: <span className="font-medium">{extracted.email}</span></p>}
-                        {extracted.phone && <p>電話番号: <span className="font-medium">{extracted.phone}</span></p>}
-                        {extracted.age && <p>年齢: <span className="font-medium">{extracted.age}歳</span></p>}
-                        {!!extracted.skills?.length && <p>スキル: <span className="font-medium">{extracted.skills.join(", ")}</span></p>}
-                        {!!extracted.companies?.length && (
+                        {extract.data.email && <p>メールアドレス: <span className="font-medium">{extract.data.email}</span></p>}
+                        {extract.data.phone && <p>電話番号: <span className="font-medium">{extract.data.phone}</span></p>}
+                        {extract.data.age && <p>年齢: <span className="font-medium">{extract.data.age}歳</span></p>}
+                        {!!extract.data.skills?.length && <p>スキル: <span className="font-medium">{extract.data.skills.join(", ")}</span></p>}
+                        {!!extract.data.companies?.length && (
                           <p>経験企業: <span className="font-medium">
-                            {extracted.companies.map((c) =>
+                            {extract.data.companies.map((c) =>
                               typeof c === "string" ? c : c.years ? `${c.name}（${c.years}）` : c.name
                             ).join(", ")}
                           </span></p>
@@ -1034,7 +1037,7 @@ function CandidateDetail({
                   <label className={labelCls}>テンプレート</label>
                   <div className="relative">
                     <select
-                      value={selectedEmailTemplateId}
+                      value={emailDraft.templateId}
                       onChange={(event) => applyEmailTemplate(event.target.value)}
                       className={selectCls}
                     >
@@ -1049,8 +1052,8 @@ function CandidateDetail({
                   <label className={labelCls}>件名</label>
                   <input
                     type="text"
-                    value={emailSubjectDraft}
-                    onChange={(event) => setEmailSubjectDraft(event.target.value)}
+                    value={emailDraft.subject}
+                    onChange={(event) => setEmailDraft((d) => ({ ...d, subject: event.target.value }))}
                     className={inputCls}
                     placeholder="メール件名"
                   />
@@ -1060,8 +1063,8 @@ function CandidateDetail({
               <div className="mt-3">
                 <label className={labelCls}>本文</label>
                 <textarea
-                  value={emailBodyDraft}
-                  onChange={(event) => setEmailBodyDraft(event.target.value)}
+                  value={emailDraft.body}
+                  onChange={(event) => setEmailDraft((d) => ({ ...d, body: event.target.value }))}
                   rows={10}
                   className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed text-slate-900 placeholder:text-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   placeholder="メール本文"
@@ -1094,7 +1097,7 @@ function CandidateDetail({
                   onClick={copyEmailBody}
                   className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
                 >
-                  {emailCopied ? "コピーしました" : "本文をコピー"}
+                  {emailDraft.copied ? "コピーしました" : "本文をコピー"}
                 </button>
                 <button
                   type="button"
@@ -1139,7 +1142,7 @@ function CandidateDetail({
                 <p className="text-xs text-slate-400">メール履歴がありません。</p>
               ) : (
                 <div className="space-y-2">
-                  {allEmail.map((e: any) => (
+                  {allEmail.map((e: EmailHistory) => (
                     <div key={e.id} className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
                       <div className="mb-0.5 flex items-center justify-between text-slate-400">
                         <span className={`font-medium ${e.direction === "送信" ? "text-blue-600" : "text-slate-600"}`}>

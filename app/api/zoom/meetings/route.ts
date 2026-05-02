@@ -39,6 +39,8 @@ export async function POST(request: Request) {
     const duration = asPositiveNumber(body.durationMinutes) ?? 60;
 
     const token = await getZoomAccessToken(accountId, clientId, clientSecret);
+    const meetingController = new AbortController();
+    const meetingTimeout = setTimeout(() => meetingController.abort(), 10000);
     const response = await fetch(`https://api.zoom.us/v2/users/${encodeURIComponent(userId)}/meetings`, {
       method: "POST",
       headers: {
@@ -58,9 +60,12 @@ export async function POST(request: Request) {
           audio: "both",
         },
       }),
+      signal: meetingController.signal,
     });
+    clearTimeout(meetingTimeout);
 
-    const result = await response.json().catch(() => ({})) as ZoomMeetingResponse;
+    const raw = await response.json().catch(() => null);
+    const result: ZoomMeetingResponse = raw !== null && typeof raw === "object" ? raw as ZoomMeetingResponse : {};
     if (!response.ok || !result.join_url) {
       return Response.json(
         { error: result.message ?? result.error ?? "Zoomミーティングの作成に失敗しました。" },
@@ -89,14 +94,19 @@ async function getZoomAccessToken(accountId: string, clientId: string, clientSec
     account_id: accountId,
   });
 
+  const tokenController = new AbortController();
+  const tokenTimeout = setTimeout(() => tokenController.abort(), 10000);
   const response = await fetch(`https://zoom.us/oauth/token?${params.toString()}`, {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
     },
+    signal: tokenController.signal,
   });
+  clearTimeout(tokenTimeout);
 
-  const result = await response.json().catch(() => ({})) as ZoomTokenResponse;
+  const raw = await response.json().catch(() => null);
+  const result: ZoomTokenResponse = raw !== null && typeof raw === "object" ? raw as ZoomTokenResponse : {};
   if (!response.ok || !result.access_token) {
     throw new Error(result.reason ?? result.error ?? "Zoomアクセストークンの取得に失敗しました。");
   }

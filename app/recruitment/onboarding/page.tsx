@@ -99,8 +99,8 @@ export default function OnboardingPage() {
       mentor: aMentor,
       ojtOwner: aOjt,
       onboardingStatus: "未開始" as OnboardingStatus,
-      condition: "普通",
-      retentionRisk: "低",
+      condition: null,
+      retentionRisk: null,
       memo: "",
       updatedAt: today(),
     });

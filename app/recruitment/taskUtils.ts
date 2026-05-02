@@ -1,5 +1,5 @@
-import { Candidate, CandidateStatus, EmailHistory, InterviewStage } from "./types";
-import { STAGE_TYPE_OPTIONS } from "./constants";
+import { Candidate, CandidateStatus, EmailHistory, InterviewStage, StageTypeDef } from "./types";
+import { recordMatchesStage } from "./statusUtils";
 
 const TERMINAL_STATUSES: CandidateStatus[] = ["内定", "不採用", "辞退"];
 
@@ -19,13 +19,11 @@ export type CandidateTask = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function recordMatchesStage(record: Candidate["interviewRecords"][number], stage: InterviewStage): boolean {
-  return record.stageId ? record.stageId === stage.id : record.stageName === stage.name;
-}
 
 export function getTaskForCandidate(
   candidate: Candidate,
-  interviewStages: InterviewStage[]
+  interviewStages: InterviewStage[],
+  stageTypeOptions: StageTypeDef[] = []
 ): CandidateTask | null {
   if (TERMINAL_STATUSES.includes(candidate.status)) return null;
 
@@ -35,7 +33,7 @@ export function getTaskForCandidate(
   for (const stage of sorted) {
     const record = candidate.interviewRecords.find((r) => recordMatchesStage(r, stage));
     if (!record || record.result !== "通過") {
-      const needsInterviewer = stageNeedsInterviewer(stage.name);
+      const needsInterviewer = stageNeedsInterviewer(stage.name, stageTypeOptions);
       const interviewers = record?.interviewers ?? [];
       const isEvaluationMissing = !!record && record.result === null;
       const baseDate = record?.date ?? getPreviousPassedDate(candidate, sorted, stage.name) ?? candidate.appliedAt;
@@ -71,23 +69,22 @@ export function getTaskForCandidate(
   return null;
 }
 
-function stageNeedsInterviewer(stageName: string): boolean {
-  const def = STAGE_TYPE_OPTIONS.find((stage) => stage.name === stageName);
+function stageNeedsInterviewer(stageName: string, stageTypeOptions: StageTypeDef[]): boolean {
+  const def = stageTypeOptions.find((stage) => stage.name === stageName);
   return def?.hasInterviewers ?? true;
 }
 
 export function getAllTasks(
   candidates: Candidate[],
   interviewStages: InterviewStage[],
-  emailHistories: EmailHistory[] = []
+  emailHistories: EmailHistory[] = [],
+  stageTypeOptions: StageTypeDef[] = []
 ): CandidateTask[] {
   return candidates
     .flatMap((c) => {
       const tasks: CandidateTask[] = [];
-      const stageTask = getTaskForCandidate(c, interviewStages);
-      const replyTask = getReplyWaitingTask(c, emailHistories);
+      const stageTask = getTaskForCandidate(c, interviewStages, stageTypeOptions);
       if (stageTask) tasks.push(stageTask);
-      if (replyTask) tasks.push(replyTask);
       return tasks;
     })
     .sort((a, b) => {

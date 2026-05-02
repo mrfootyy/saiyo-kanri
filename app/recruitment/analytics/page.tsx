@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useRecruitment } from "../context";
-import { ACTIVE_STATUSES, DEFAULT_POSITION_OPTION } from "../constants";
+import { ACTIVE_STATUSES } from "../constants";
 import { Candidate, CandidateStatus, HireGoal } from "../types";
 import { authFetch } from "../../../lib/authFetch";
 
@@ -470,7 +470,7 @@ export default function AnalyticsPage() {
           <h2 className="text-sm font-semibold text-slate-900">採用目標</h2>
           <button
             onClick={() => {
-              setGoalDraft(hireGoals.length > 0 ? hireGoals : [{ position: DEFAULT_POSITION_OPTION, target: 1 }]);
+              setGoalDraft(hireGoals.length > 0 ? hireGoals : [{ position: positionOptions[0] ?? "", target: 1 }]);
               setEditingGoals(!editingGoals);
             }}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
@@ -505,7 +505,7 @@ export default function AnalyticsPage() {
                 </div>
               ))}
               <div className="flex gap-2 pt-1">
-                <button onClick={() => setGoalDraft((draft) => [...draft, { position: positionOptions[0] ?? DEFAULT_POSITION_OPTION, target: 1 }])} className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1">
+                <button onClick={() => setGoalDraft((draft) => [...draft, { position: positionOptions[0] ?? "", target: 1 }])} className="rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1">
                   + 目標を追加
                 </button>
                 <button onClick={saveGoals} className="rounded-lg bg-blue-600 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1">

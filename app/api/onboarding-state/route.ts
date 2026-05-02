@@ -1,4 +1,5 @@
 import { requireAuthenticatedUser } from "../../../lib/serverAuth";
+import { apiError } from "../../../lib/apiError";
 
 const STATE_ID = "default";
 
@@ -14,14 +15,11 @@ export async function GET(request: Request) {
       .eq("id", STATE_ID)
       .maybeSingle();
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (error) return apiError("オンボーディングデータの取得に失敗しました。", 500);
 
     return Response.json({ data: data?.data ?? null });
-  } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to load onboarding state." },
-      { status: 500 }
-    );
+  } catch {
+    return apiError("オンボーディングデータの取得に失敗しました。", 500);
   }
 }
 
@@ -30,7 +28,11 @@ export async function POST(request: Request) {
     const auth = await requireAuthenticatedUser(request);
     if ("response" in auth) return auth.response;
 
-    const body = await request.json();
+    const body: unknown = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return apiError("リクエストデータの形式が不正です。", 400);
+    }
+
     const { supabase } = auth;
     const { error } = await supabase
       .from("onboarding_state")
@@ -40,13 +42,10 @@ export async function POST(request: Request) {
         updated_at: new Date().toISOString(),
       });
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (error) return apiError("オンボーディングデータの保存に失敗しました。", 500);
 
     return Response.json({ ok: true });
-  } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Failed to save onboarding state." },
-      { status: 500 }
-    );
+  } catch {
+    return apiError("オンボーディングデータの保存に失敗しました。", 500);
   }
 }

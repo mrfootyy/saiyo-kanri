@@ -161,3 +161,23 @@ export type InterviewerMention = {
   name: string;
   mention: string;
 };
+
+export type StageTypeDef = {
+  name: string;
+  hasInterviewers: boolean;
+  hasFormat: boolean;
+  defaultDescription: string;
+};
+
+export type EvaluationConfig = {
+  defaultInterviewItems: string[];
+  defaultDocumentItems: string[];
+  byPosition: Record<string, { interviewItems: string[]; documentItems: string[] }>;
+};
+
+export type NotificationTriggers = {
+  resultChange: boolean;
+  interviewerAssign: boolean;
+  scheduleShare: boolean;
+  statusChange: boolean;
+};

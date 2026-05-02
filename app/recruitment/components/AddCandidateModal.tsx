@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRecruitment } from "../context";
 import { Candidate, DocumentFile } from "../types";
 import { extractFromFile, isExtractError } from "../extractFromFile";
-import { DEFAULT_POSITION_OPTION } from "../constants";
 import DocumentUpload from "./DocumentUpload";
 import PositionSelect from "./PositionSelect";
 
@@ -13,10 +12,10 @@ type Props = {
 };
 
 export default function AddCandidateModal({ onClose }: Props) {
-  const { addCandidate } = useRecruitment();
+  const { addCandidate, positionOptions } = useRecruitment();
 
   const [name, setName] = useState("");
-  const [position, setPosition] = useState<string>(DEFAULT_POSITION_OPTION);
+  const [position, setPosition] = useState<string>(positionOptions[0] ?? "");
   const [customPosition, setCustomPosition] = useState("");
   const [nameKana, setNameKana] = useState("");
   const [email, setEmail] = useState("");

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DEFAULT_POSITION_OPTION } from "../constants";
 import { useRecruitment } from "../context";
 
 type Props = {
@@ -118,28 +117,22 @@ export default function PositionSelect({
             </button>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {positionOptions.map((position) => {
-              const isDefault = position === DEFAULT_POSITION_OPTION;
-              return (
-                <span key={position} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
-                  {position}
-                  {isDefault ? (
-                    <span className="text-slate-400">既定</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => removePositionOption(position)}
-                      className="rounded-full p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-                      aria-label={`${position}を選択肢から削除`}
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
-              );
-            })}
+            {positionOptions.map((position) => (
+              <span key={position} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
+                {position}
+                <button
+                  type="button"
+                  onClick={() => removePositionOption(position)}
+                  disabled={positionOptions.length <= 1}
+                  className="rounded-full p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                  aria-label={`${position}を選択肢から削除`}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </span>
+            ))}
           </div>
         </div>
       )}

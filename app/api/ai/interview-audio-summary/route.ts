@@ -106,8 +106,8 @@ ${transcript}`,
   } catch (error) {
     console.error("interview-audio-summary error:", error);
     const status = (error as { status?: number })?.status;
-    if (status === 401) return Response.json({ error: "APIキーが無効です。.env.local を確認してください。" }, { status: 401 });
-    if (status === 429) return Response.json({ error: "OpenAI APIのクォータを超過しています。残高を確認してください。" }, { status: 429 });
+    if (status === 401) return Response.json({ error: "AI機能の認証に失敗しました。管理者にお問い合わせください。" }, { status: 401 });
+    if (status === 429) return Response.json({ error: "AI機能の利用制限に達しています。しばらくしてから再試行してください。" }, { status: 429 });
     return Response.json({ error: "録音の文字起こし・要約に失敗しました。" }, { status: 500 });
   }
 }

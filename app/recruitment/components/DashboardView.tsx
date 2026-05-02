@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Candidate, EmailHistory, InterviewStage, SlackNotification } from "../types";
 import { getAllTasks } from "../taskUtils";
+import { useRecruitment } from "../context";
 import SummaryCards from "./SummaryCards";
 import InterviewCalendar from "./InterviewCalendar";
 
@@ -14,15 +15,12 @@ type Props = {
 };
 
 export default function DashboardView({ candidates, slackNotifications, emailHistories, interviewStages }: Props) {
+  const { stageTypeOptions } = useRecruitment();
   const recentSlack = [...slackNotifications]
     .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
     .slice(0, 5);
 
-  const recentEmail = [...emailHistories]
-    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
-    .slice(0, 5);
-
-  const allTasks = getAllTasks(candidates, interviewStages, emailHistories);
+  const allTasks = getAllTasks(candidates, interviewStages, emailHistories, stageTypeOptions);
   const tasks = allTasks.slice(0, 5);
 
   return (
@@ -129,40 +127,6 @@ export default function DashboardView({ candidates, slackNotifications, emailHis
           </ul>
         </section>
 
-        <section aria-labelledby="email-heading" className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <h3 id="email-heading" className="text-sm font-semibold text-slate-700">メール</h3>
-            </div>
-            <Link
-              href="/recruitment/email"
-              className="text-xs font-medium text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded"
-            >
-              すべて見る
-            </Link>
-          </div>
-          <ul className="divide-y divide-slate-50">
-            {recentEmail.length === 0 ? (
-              <li className="px-5 py-6 text-center text-sm text-slate-400">メールがありません。</li>
-            ) : (
-              recentEmail.map((e) => (
-                <li key={e.id} className="px-5 py-3.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-xs font-semibold ${e.direction === "送信" ? "text-blue-600" : "text-slate-600"}`}>
-                      {e.direction}
-                    </span>
-                    <span className="text-xs text-slate-400">{e.sentAt}</span>
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-sm font-medium text-slate-700">{e.subject}</p>
-                  <p className="text-xs text-slate-400 line-clamp-1">{e.candidateName}</p>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
       </div>
     </div>
   );

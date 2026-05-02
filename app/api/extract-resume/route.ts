@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     if ("response" in auth) return auth.response;
 
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ error: "OPENAI_API_KEY が設定されていません。" }, { status: 500 });
+      return NextResponse.json({ error: "AI機能が設定されていません。管理者にお問い合わせください。" }, { status: 500 });
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -21,9 +21,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "dataUrl is required" }, { status: 400 });
     }
 
-    const base64 = dataUrl.split(",")[1];
+    const [dataUrlHeader, base64] = dataUrl.split(",");
     if (!base64) {
-      return NextResponse.json({ error: "Invalid dataUrl" }, { status: 400 });
+      return NextResponse.json({ error: "ファイルの形式が不正です。" }, { status: 400 });
+    }
+
+    const allowedMimes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+    const detectedMime = dataUrlHeader?.split(":")[1]?.split(";")[0] ?? "";
+    if (!allowedMimes.includes(detectedMime)) {
+      return NextResponse.json({ error: "PDFまたは画像ファイルのみ対応しています。" }, { status: 400 });
     }
 
     const byteLength = Buffer.byteLength(base64, "base64");
@@ -34,12 +40,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isImage = fileType?.startsWith("image/");
-    const isPdf = fileType === "application/pdf";
-
-    if (!isImage && !isPdf) {
-      return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
-    }
+    const isImage = detectedMime.startsWith("image/");
+    const isPdf = detectedMime === "application/pdf";
 
     const today = new Date().toISOString().slice(0, 10);
     const systemPrompt = `あなたは日本語の履歴書・職務経歴書を解析するAIです。
@@ -88,7 +90,16 @@ JSONのみを返してください。説明文は不要です。`;
       return NextResponse.json({ error: "No response from AI" }, { status: 500 });
     }
 
-    const parsed = JSON.parse(content);
+    let parsed: Record<string, unknown>;
+    try {
+      const raw: unknown = JSON.parse(content);
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        return NextResponse.json({ error: "AI読み取りに失敗しました。" }, { status: 500 });
+      }
+      parsed = raw as Record<string, unknown>;
+    } catch {
+      return NextResponse.json({ error: "AI読み取りに失敗しました。" }, { status: 500 });
+    }
 
     const normalizeDuration = (obj: Record<string, unknown>) => {
       const rawYears = obj.years ?? obj.duration ?? obj.period;
@@ -134,8 +145,8 @@ JSONのみを返してください。説明文は不要です。`;
   } catch (err: unknown) {
     console.error("extract-resume error:", err);
     const status = (err as { status?: number })?.status;
-    if (status === 401) return NextResponse.json({ error: "APIキーが無効です。.env.local を確認してください。" }, { status: 401 });
-    if (status === 429) return NextResponse.json({ error: "OpenAI APIのクォータを超過しています。残高を確認してください。" }, { status: 429 });
+    if (status === 401) return NextResponse.json({ error: "AI機能の認証に失敗しました。管理者にお問い合わせください。" }, { status: 401 });
+    if (status === 429) return NextResponse.json({ error: "AI機能の利用制限に達しています。しばらくしてから再試行してください。" }, { status: 429 });
     if (status === 400) return NextResponse.json({ error: "ファイル形式をAIが読み取れませんでした。別のPDFまたは画像で試してください。" }, { status: 400 });
     return NextResponse.json({ error: "AI読み取りに失敗しました。" }, { status: 500 });
   }
