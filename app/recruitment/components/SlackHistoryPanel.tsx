@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { SlackNotification } from "../types";
+import ConfirmDialog from "./ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 type Props = {
   notifications: SlackNotification[];
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export default function SlackHistoryPanel({ notifications, fullPage, onClearNotifications }: Props) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [query, setQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState("すべて");
   const [channelFilter, setChannelFilter] = useState("すべて");
@@ -60,8 +63,8 @@ export default function SlackHistoryPanel({ notifications, fullPage, onClearNoti
           {onClearNotifications && notifications.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("Slack通知履歴を全て削除しますか？")) onClearNotifications();
+              onClick={async () => {
+                if (await confirm("Slack通知履歴を全て削除しますか？")) onClearNotifications();
               }}
               className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
             >
@@ -123,6 +126,7 @@ export default function SlackHistoryPanel({ notifications, fullPage, onClearNoti
           ))
         )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} confirmLabel="全て削除" />
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { ACTIVE_STATUSES } from "../constants";
 import SearchFilter from "../components/SearchFilter";
 import CandidateTable from "../components/CandidateTable";
 import AddCandidateModal from "../components/AddCandidateModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 export type SortKey = "appliedAt" | "updatedAt" | "name" | "status";
 export type SortOrder = "asc" | "desc";
@@ -25,6 +27,7 @@ const BULK_STATUS_OPTIONS: CandidateStatus[] = ["書類選考", "一次面接", 
 
 export default function CandidatesPage() {
   const { candidates, bulkUpdateStatus, deleteCandidate } = useRecruitment();
+  const { confirm, confirmDialogProps } = useConfirm();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue | "選考中">("選考中");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,8 +101,9 @@ export default function CandidatesPage() {
     setSelectedIds(new Set());
   }
 
-  function handleBulkDelete() {
-    if (!window.confirm(`選択した${selectedIds.size}件を削除します。この操作は元に戻せません。`)) return;
+  async function handleBulkDelete() {
+    const ok = await confirm(`選択した${selectedIds.size}件を削除します。この操作は元に戻せません。`);
+    if (!ok) return;
     [...selectedIds].forEach((id) => deleteCandidate(id));
     setSelectedIds(new Set());
   }
@@ -204,6 +208,7 @@ export default function CandidatesPage() {
       </div>
 
       {showAddModal && <AddCandidateModal onClose={() => setShowAddModal(false)} />}
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

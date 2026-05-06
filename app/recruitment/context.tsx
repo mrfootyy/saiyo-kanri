@@ -320,7 +320,7 @@ export function RecruitmentProvider({ children }: { children: React.ReactNode })
         });
         if (!response.ok) {
           const result = await response.json().catch(() => null);
-          throw new Error(result?.error ?? "Failed to save recruitment data.");
+          console.error("Failed to save recruitment data to Supabase:", result?.error ?? response.status);
         }
       } catch (error) {
         console.error("Failed to save recruitment data to Supabase", error);

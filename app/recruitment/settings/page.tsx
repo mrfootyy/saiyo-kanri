@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { authFetch } from "../../../lib/authFetch";
 import { useRecruitment } from "../context";
 import { Candidate, EmailTemplate, EvaluationConfig, NotificationTriggers, StageTypeDef } from "../types";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 type SettingsTab = "面接官" | "職種マスタ" | "ステージタイプ" | "評価項目" | "通知設定" | "メールテンプレート" | "Slack設定" | "バックアップ";
 
@@ -543,6 +545,7 @@ function InterviewersTab() {
 
 function EmailTemplatesTab() {
   const { emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate } = useRecruitment();
+  const { confirm, confirmDialogProps } = useConfirm();
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<Omit<EmailTemplate, "id">>({ name: "", subject: "", body: "", category: "その他" });
@@ -702,8 +705,8 @@ function EmailTemplatesTab() {
                   編集
                 </button>
                 <button
-                  onClick={() => {
-                    if (window.confirm(`「${t.name}」を削除しますか？`)) deleteEmailTemplate(t.id);
+                  onClick={async () => {
+                    if (await confirm(`「${t.name}」を削除しますか？`)) deleteEmailTemplate(t.id);
                   }}
                   className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                 >
@@ -714,6 +717,7 @@ function EmailTemplatesTab() {
           </div>
         ))}
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }
@@ -775,7 +779,7 @@ function SlackSettingsTab() {
         <div className="space-y-4">
           <div>
             <label htmlFor="slack-webhookUrl" className="mb-0.5 block text-sm font-medium text-slate-700">Webhook URL</label>
-            <p className="mb-1.5 text-xs text-slate-400">SlackアプリのIncoming Webhook URLを入力してください。未入力の場合はサーバーの環境変数を使用します。</p>
+            <p className="mb-1.5 text-xs text-slate-400">SlackアプリのIncoming Webhook URLを入力してください。</p>
             <input
               id="slack-webhookUrl"
               type="url"

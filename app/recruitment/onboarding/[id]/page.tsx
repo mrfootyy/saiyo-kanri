@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useOnboarding } from "../context";
 import { useRecruitment } from "../../context";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import { useConfirm } from "../../hooks/useConfirm";
 import type {
   OnboardingStatus,
   MemberCondition,
@@ -690,6 +692,7 @@ function TrainingModal({ record, onClose, onSave, onDelete }: {
   onSave: (r: TrainingRecord) => void;
   onDelete: (id: string) => void;
 }) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [name, setName] = useState(record.trainingName);
   const [date, setDate] = useState(record.trainedAt);
   const [trainer, setTrainer] = useState(record.trainer);
@@ -727,13 +730,14 @@ function TrainingModal({ record, onClose, onSave, onDelete }: {
         </div>
         <div><label className={labelCls}>次のアクション</label><input type="text" value={next} onChange={(e) => setNext(e.target.value)} className={inputCls} /></div>
         <div className="flex items-center justify-between pt-2">
-          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <button onClick={async () => { if (await confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
             <button onClick={() => onSave({ ...record, trainingName: name, trainedAt: date, trainer, content, understandingLevel: level, deliverableUrl: url, goodPoint: good, issuePoint: issue, nextAction: next })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
           </div>
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} message="この記録を削除しますか？" />
     </Modal>
   );
 }
@@ -744,6 +748,7 @@ function OjtModal({ record, onClose, onSave, onDelete }: {
   onSave: (r: OjtRecord) => void;
   onDelete: (id: string) => void;
 }) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [project, setProject] = useState(record.projectName);
   const [task, setTask] = useState(record.taskName);
   const [date, setDate] = useState(record.recordedAt);
@@ -780,13 +785,14 @@ function OjtModal({ record, onClose, onSave, onDelete }: {
         </div>
         <div><label className={labelCls}>本人の理解度 (1〜5)</label><div className="relative w-32"><select value={self} onChange={(e) => setSelf(Number(e.target.value) as 1|2|3|4|5)} className={selectCls}>{([1,2,3,4,5] as const).map((n) => <option key={n} value={n}>{n}</option>)}</select><SelectArrow /></div></div>
         <div className="flex items-center justify-between pt-2">
-          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <button onClick={async () => { if (await confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
             <button onClick={() => onSave({ ...record, projectName: project, taskName: task, recordedAt: date, difficulty: diff, progress: prog, reviewer, blocker, feedback, selfUnderstandingLevel: self, reviewerComment: comment })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
           </div>
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} message="この記録を削除しますか？" />
     </Modal>
   );
 }
@@ -797,6 +803,7 @@ function ReportModal({ record, onClose, onSave, onDelete }: {
   onSave: (r: DailyReport) => void;
   onDelete: (id: string) => void;
 }) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [date, setDate] = useState(record.reportedAt);
   const [did, setDid] = useState(record.didToday);
   const [learned, setLearned] = useState(record.learned);
@@ -822,13 +829,14 @@ function ReportModal({ record, onClose, onSave, onDelete }: {
           <div><label className={labelCls}>相談したいこと</label><textarea value={consult} onChange={(e) => setConsult(e.target.value)} rows={3} className={textareaCls} /></div>
         </div>
         <div className="flex items-center justify-between pt-2">
-          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <button onClick={async () => { if (await confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
             <button onClick={() => onSave({ ...record, reportedAt: date, didToday: did, learned, blocked, nextPlan: next, consultation: consult })} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
           </div>
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} message="この記録を削除しますか？" />
     </Modal>
   );
 }
@@ -840,6 +848,7 @@ function MeetingModal({ record, interviewers, onClose, onSave, onDelete }: {
   onSave: (m: MentorMeeting) => void;
   onDelete: (id: string) => void;
 }) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [date, setDate] = useState(record.meetingAt);
   const [mentor, setMentor] = useState(record.mentor);
   const [workCond, setWorkCond] = useState<MemberCondition>(record.workCondition);
@@ -899,13 +908,14 @@ function MeetingModal({ record, interviewers, onClose, onSave, onDelete }: {
           </div>
         </div>
         <div className="flex items-center justify-between pt-2">
-          <button onClick={() => { if (window.confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
+          <button onClick={async () => { if (await confirm("削除しますか？")) onDelete(record.id); }} className="text-sm font-medium text-red-500 hover:text-red-700">削除する</button>
           <div className="flex gap-2">
             <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">キャンセル</button>
             <button onClick={handleSave} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">保存する</button>
           </div>
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} message="この記録を削除しますか？" />
     </Modal>
   );
 }

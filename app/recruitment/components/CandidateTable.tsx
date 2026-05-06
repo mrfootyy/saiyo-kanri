@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Candidate } from "../types";
 import { useRecruitment } from "../context";
 import { getTaskForCandidate } from "../taskUtils";
 import StatusBadge from "./StatusBadge";
+import ConfirmDialog from "./ConfirmDialog";
 import type { SortKey, SortOrder } from "../candidates/page";
 
 type Props = {
@@ -59,6 +61,13 @@ export default function CandidateTable({
   const router = useRouter();
   const { interviewStages } = useRecruitment();
   const hasActions = !!onDelete;
+  const [confirmState, setConfirmState] = useState<{ open: boolean; candidateId: string; candidateName: string }>({
+    open: false, candidateId: "", candidateName: "",
+  });
+
+  function requestDelete(id: string, name: string) {
+    setConfirmState({ open: true, candidateId: id, candidateName: name });
+  }
 
   if (candidates.length === 0) {
     return (
@@ -115,13 +124,9 @@ export default function CandidateTable({
                   <span className="font-semibold text-blue-700">{candidate.name}</span>
                   <StatusBadge status={candidate.status} />
                 </button>
-                {hasActions && onDelete && (
+                {hasActions && (
                   <button
-                    onClick={() => {
-                      if (window.confirm(`「${candidate.name}」を削除します。この操作は元に戻せません。`)) {
-                        onDelete(candidate.id);
-                      }
-                    }}
+                    onClick={() => requestDelete(candidate.id, candidate.name)}
                     aria-label={`${candidate.name}を削除`}
                     className="flex-shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                   >
@@ -326,13 +331,9 @@ export default function CandidateTable({
                   {hasActions && (
                     <td className="px-2 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center">
-                        {onDelete && (
+                        {hasActions && (
                           <button
-                            onClick={() => {
-                              if (window.confirm(`「${candidate.name}」を削除します。この操作は元に戻せません。`)) {
-                                onDelete(candidate.id);
-                              }
-                            }}
+                            onClick={() => requestDelete(candidate.id, candidate.name)}
                             aria-label={`${candidate.name}を削除`}
                             className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                           >
@@ -350,6 +351,15 @@ export default function CandidateTable({
           </tbody>
         </table>
       </div>
+      <ConfirmDialog
+        open={confirmState.open}
+        message={`「${confirmState.candidateName}」を削除します。この操作は元に戻せません。`}
+        onConfirm={() => {
+          onDelete?.(confirmState.candidateId);
+          setConfirmState({ open: false, candidateId: "", candidateName: "" });
+        }}
+        onCancel={() => setConfirmState({ open: false, candidateId: "", candidateName: "" })}
+      />
     </>
   );
 }

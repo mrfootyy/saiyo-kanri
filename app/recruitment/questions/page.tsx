@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRecruitment } from "../context";
 import { InterviewQuestion } from "../types";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 const STAGES = ["一次面接", "二次面接", "最終面接", "その他"];
 const TAGS = ["志望動機", "経歴・スキル", "思考・問題解決", "カルチャーフィット", "将来・キャリア", "逆質問対策", "その他"];
@@ -26,6 +28,7 @@ const TAG_COLORS: Record<string, string> = {
 
 export default function QuestionsPage() {
   const { interviewQuestions, addInterviewQuestion, updateInterviewQuestion, deleteInterviewQuestion } = useRecruitment();
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const [openAnswerId, setOpenAnswerId] = useState<string | null>(null);
   const [activeStage, setActiveStage] = useState<string>("一次面接");
@@ -83,8 +86,9 @@ export default function QuestionsPage() {
     }
   }
 
-  function handleBulkDelete() {
-    if (!window.confirm(`選択した${selected.size}件を削除します。`)) return;
+  async function handleBulkDelete() {
+    const ok = await confirm(`選択した${selected.size}件を削除します。`);
+    if (!ok) return;
     selected.forEach((id) => deleteInterviewQuestion(id));
     setSelected(new Set());
   }
@@ -583,6 +587,7 @@ export default function QuestionsPage() {
         </div>
       </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

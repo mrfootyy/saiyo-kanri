@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useOnboarding } from "./context";
 import { useRecruitment } from "../context";
 import type { OnboardingStatus } from "./types";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 const STATUS_BADGE: Record<string, string> = {
   未開始: "bg-slate-100 text-slate-500",
@@ -33,6 +35,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 
 export default function OnboardingPage() {
   const { members, trainingRecords, dailyReports, mentorMeetings, addMember, removeMember } = useOnboarding();
+  const { confirm, confirmDialogProps } = useConfirm();
   const { candidates, interviewers } = useRecruitment();
 
   const router = useRouter();
@@ -131,9 +134,9 @@ export default function OnboardingPage() {
     setACandidateId("");
   }
 
-  function handleDelete(e: React.MouseEvent, id: string, name: string) {
+  async function handleDelete(e: React.MouseEvent, id: string, name: string) {
     e.stopPropagation();
-    if (!window.confirm(`「${name}」を削除しますか？関連する記録もすべて削除されます。`)) return;
+    if (!await confirm(`「${name}」を削除しますか？関連する記録もすべて削除されます。`)) return;
     removeMember(id);
   }
 
@@ -431,6 +434,7 @@ export default function OnboardingPage() {
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

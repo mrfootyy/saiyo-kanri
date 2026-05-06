@@ -97,13 +97,11 @@ function isOnboardingData(value: unknown): value is OnboardingData {
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<OnboardingData | null>(null);
+  const [data, setData] = useState<OnboardingData>(() => loadFromStorage());
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
 
   useEffect(() => {
     async function loadData() {
-      const localData = loadFromStorage();
-
       try {
         const response = await authFetch("/api/onboarding-state");
         if (response.ok) {
@@ -119,7 +117,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         console.error("Failed to load onboarding data from Supabase", error);
       }
 
-      setData(localData);
       setHasLoadedStorage(true);
     }
 
@@ -139,7 +136,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         });
         if (!response.ok) {
           const result = await response.json().catch(() => null);
-          throw new Error(result?.error ?? "Failed to save onboarding data.");
+          console.error("Failed to save onboarding data to Supabase:", result?.error ?? response.status);
         }
       } catch (error) {
         console.error("Failed to save onboarding data to Supabase", error);
@@ -151,16 +148,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   function update(next: OnboardingData) {
     setData(next);
-  }
-
-  if (!data) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-slate-50 px-6">
-        <div className="rounded-lg border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-600 shadow-sm">
-          オンボーディングデータを読み込んでいます...
-        </div>
-      </div>
-    );
   }
 
   const value: OnboardingContextType = {

@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { EmailHistory } from "../types";
+import ConfirmDialog from "./ConfirmDialog";
+import { useConfirm } from "../hooks/useConfirm";
 
 type Props = {
   histories: EmailHistory[];
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export default function EmailHistoryPanel({ histories, fullPage, onClearHistories }: Props) {
+  const { confirm, confirmDialogProps } = useConfirm();
   const [query, setQuery] = useState("");
   const [candidateFilter, setCandidateFilter] = useState("すべて");
   const [directionFilter, setDirectionFilter] = useState("すべて");
@@ -56,8 +59,8 @@ export default function EmailHistoryPanel({ histories, fullPage, onClearHistorie
           {onClearHistories && histories.length > 0 && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("メール履歴を全て削除しますか？")) onClearHistories();
+              onClick={async () => {
+                if (await confirm("メール履歴を全て削除しますか？")) onClearHistories();
               }}
               className="rounded-md border border-rose-200 px-2 py-1 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
             >
@@ -126,6 +129,7 @@ export default function EmailHistoryPanel({ histories, fullPage, onClearHistorie
           ))
         )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} confirmLabel="全て削除" />
     </div>
   );
 }
